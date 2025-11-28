@@ -7,6 +7,69 @@ import { generateContentWithImage, generateContent, extractTextFromImage } from 
 import { getExampleCounts } from './exampleManager.js';
 
 /**
+ * CSS 정제: html2canvas 호환성 보장
+ * - HEX 색상을 RGB로 변환
+ * - 문제가 되는 CSS 속성 제거
+ */
+function sanitizeCSS(html) {
+   console.log('🔧 CSS 정제 시작...');
+
+   let sanitized = html;
+
+   // 1. HEX 색상을 RGB로 변환 (#RRGGBB → rgb(R, G, B))
+   sanitized = sanitized.replace(/#([0-9A-Fa-f]{6})|#([0-9A-Fa-f]{3})/g, (match, hex6, hex3) => {
+      let hex = hex6 || hex3;
+
+      // 3자리 hex를 6자리로 확장
+      if (hex.length === 3) {
+         hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+      }
+
+      const r = parseInt(hex.substring(0, 2), 16);
+      const g = parseInt(hex.substring(2, 4), 16);
+      const b = parseInt(hex.substring(4, 6), 16);
+
+      return `rgb(${r}, ${g}, ${b})`;
+   });
+
+   // 2. style 속성 내에서 문제가 되는 CSS 제거
+   sanitized = sanitized.replace(/style="([^"]*)"/g, (match, styleContent) => {
+      let cleaned = styleContent;
+
+      // gradient 완전 제거
+      cleaned = cleaned.replace(/background:\s*linear-gradient\([^;)]*\)[^;]*/gi, '');
+      cleaned = cleaned.replace(/background:\s*radial-gradient\([^;)]*\)[^;]*/gi, '');
+      cleaned = cleaned.replace(/background-image:\s*linear-gradient\([^;)]*\)[^;]*/gi, '');
+      cleaned = cleaned.replace(/background-image:\s*radial-gradient\([^;)]*\)[^;]*/gi, '');
+
+      // 그림자 제거
+      cleaned = cleaned.replace(/text-shadow:[^;]*;?/gi, '');
+      cleaned = cleaned.replace(/box-shadow:\s*inset[^;]*;?/gi, ''); // inset만 제거
+
+      // 필터 제거
+      cleaned = cleaned.replace(/filter:[^;]*;?/gi, '');
+      cleaned = cleaned.replace(/backdrop-filter:[^;]*;?/gi, '');
+
+      // 복잡한 transform 제거 (rotate, skew)
+      cleaned = cleaned.replace(/transform:[^;]*(?:rotate|skew)[^;]*;?/gi, '');
+
+      // clip-path 제거
+      cleaned = cleaned.replace(/clip-path:[^;]*;?/gi, '');
+
+      // mix-blend-mode 제거
+      cleaned = cleaned.replace(/mix-blend-mode:[^;]*;?/gi, '');
+
+      // 불필요한 세미콜론 정리
+      cleaned = cleaned.replace(/;+/g, ';').replace(/;\s*$/, '');
+
+      return `style="${cleaned}"`;
+   });
+
+   console.log('✅ CSS 정제 완료 (HEX→RGB, 문제 속성 제거)');
+   return sanitized;
+}
+
+/**
  * HTML 코드 블록 추출 및 정제
  */
 function extractHTML(text) {
@@ -302,8 +365,9 @@ export async function generateAIDesign(productInfo, productImages, styleExamples
 
       cleanHTML = cleanHTML.replace(/\{\{PRODUCT_IMAGE\}\}/g, images[0]);
 
-      // ✅ 검수 제거: OCR로 정확성 확보
-      console.log('✅ 생성 완료 (OCR 기반 정확성 보장)');
+      // ✅ CSS 정제: html2canvas 호환성 보장
+      cleanHTML = sanitizeCSS(cleanHTML);
+      console.log('✅ 생성 완료 (OCR + CSS 정제)');
 
       return cleanHTML;
    } catch (error) {
