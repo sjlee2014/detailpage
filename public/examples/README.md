@@ -24,8 +24,11 @@
 - `example_smile_badge.jpg` - 스마일 뱃지
 - `example_korea_badge.jpg` - 태극기 뱃지
 
-### 풍부한 스타일 (1개)
+### 풍부한 스타일 (4개)
 - `example_long_detail.jpg` - 긴 상세페이지
+- `example_colorful_house.jpg` - 컬러풀한 집
+- `example_snowflake_sticker.png` - 눈꽃 스티커 상세페이지
+- `example_ornament_collection.png` - 그리기 오너먼트 컬렉션
 
 ## 🚀 사용법
 

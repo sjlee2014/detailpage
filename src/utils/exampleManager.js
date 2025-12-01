@@ -15,6 +15,8 @@ const EXAMPLE_LIBRARY = {
     rich: [
         '/examples/rich/example_long_detail.jpg',
         '/examples/rich/example_colorful_house.jpg',
+        '/examples/rich/example_snowflake_sticker.png',
+        '/examples/rich/example_ornament_collection.png',
     ]
 };
 
