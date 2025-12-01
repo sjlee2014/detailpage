@@ -10,16 +10,16 @@
  * @returns {string} HTML 문자열
  */
 export function renderCuteTemplate(data, productImage) {
-    const {
-        productName,
-        mainCopy,
-        subCopy,
-        features,
-        detailedDescription,
-        recommendation,
-    } = data;
+  const {
+    productName,
+    mainCopy,
+    subCopy,
+    features,
+    detailedDescription,
+    recommendation,
+  } = data;
 
-    return `
+  return `
     <div class="template-cute" style="
       width: 800px;
       background: linear-gradient(180deg, #e0f2fe 0%, #ddd6fe 50%, #fce7f3 100%);
@@ -187,6 +187,30 @@ export function renderCuteTemplate(data, productImage) {
         </div>
       </div>
       
+      <!-- 주의사항 섹션 -->
+      <div style="
+        background: #fff3cd;
+        border-left: 5px solid #ffc107;
+        border-radius: 12px;
+        padding: 30px 40px;
+        margin: 40px 60px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      ">
+        <h3 style="
+          font-size: 22px;
+          font-weight: 600;
+          color: #856404;
+          margin: 0 0 16px 0;
+        ">⚠️ ${data.cautionTitle || '주의사항'}</h3>
+        <p style="
+          font-size: 16px;
+          color: #856404;
+          line-height: 1.6;
+          margin: 0;
+          white-space: pre-line;
+        ">${data.caution || '상품을 사용하기 전에 제품 라벨 및 사용 설명서를 반드시 확인하세요.\\n알레르기가 있으신 분은 성분을 꼭 확인해 주세요.'}</p>
+      </div>
+      
       <!-- 하단 웨이브 장식 -->
       <div style="
         width: 100%;
@@ -196,17 +220,16 @@ export function renderCuteTemplate(data, productImage) {
         margin-top: 40px;
       "></div>
       
-      <!-- 브랜드 영역 -->
+      <!-- 브랜드 로고 영역 -->
       <div style="
         text-align: center;
-        padding: 30px 60px 40px;
+        padding: 40px 60px 50px;
         background: #f1f5f9;
       ">
-        <p style="
-          font-size: 16px;
-          color: #94a3b8;
-          margin: 0;
-        ">Made with 💝 by VibeCoding</p>
+        <img src="/brand-logo.png" alt="Monggle Shop" style="
+          max-width: 300px;
+          height: auto;
+        " />
       </div>
     </div>
   `;
@@ -216,10 +239,10 @@ export function renderCuteTemplate(data, productImage) {
  * 템플릿 미리보기용 축소 버전
  */
 export function renderCuteTemplatePreview(data, productImage) {
-    // 실제 템플릿과 동일하지만 크기를 조정
-    const fullTemplate = renderCuteTemplate(data, productImage);
+  // 실제 템플릿과 동일하지만 크기를 조정
+  const fullTemplate = renderCuteTemplate(data, productImage);
 
-    return `
+  return `
     <div style="transform: scale(0.4); transform-origin: top center;">
       ${fullTemplate}
     </div>

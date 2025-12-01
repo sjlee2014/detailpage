@@ -132,7 +132,7 @@ async function extractTextsFromImages(productImages) {
 /**
  * AI 디자인 생성 프롬프트 구성
  */
-function buildDesignPrompt(productInfo, imageAnalysis, styleExamples, imageCount, imageTexts, styleAnalysis) {
+function buildDesignPrompt(productInfo, imageAnalysis, styleExamples, imageCount, imageTexts, styleAnalysis, brandLogo) {
    const { productName, description } = productInfo;
    const { category, colors, features, mood } = imageAnalysis;
 
@@ -155,6 +155,23 @@ ${imageTexts.map((text, idx) => text ? `- 이미지 ${idx}: "${text}"` : '').fil
       }
    }
 
+   // 🆕 브랜드 로고 관련 프롬프트 섹션 생성
+   let brandLogoStructure = '';
+   let brandLogoRule = '';
+   let brandLogoGuide = '';
+
+   if (brandLogo) {
+      brandLogoStructure = '7. **브랜드 로고 섹션** (필수 포함!)';
+      brandLogoRule = '- 브랜드 로고: **반드시** {{BRAND_LOGO}} 플레이스홀더를 사용하여 맨 마지막에 배치하세요!';
+      brandLogoGuide = `
+🏷️ **브랜드 로고 사용 지침 (필수):**
+- 상세페이지 **맨 마지막** (모든 콘텐츠 이후)에 브랜드 로고를 배치하세요
+- HTML: <img src="{{BRAND_LOGO}}" alt="브랜드 로고" style="max-width: 300px; height: auto;" />
+- 배치: 중앙 정렬(text-align: center), 충분한 여백(padding: 40px 60px 50px)
+- 배경: 연한 회색 rgb(241, 245, 249)
+`;
+   }
+
    return `당신은 15년 경력의 e-커머스 상세페이지 디자인 전문가입니다.
 
 제품 정보:
@@ -173,7 +190,9 @@ ${fewShotSection}
 3. 신뢰도 지표 섹션
 4. 핵심 특징 섹션
 5. 상세 설명 섹션
-6. CTA 버튼
+6. **주의사항 및 안내 섹션** (제품 특성에 맞춰 자동 생성)
+7. CTA 버튼
+${brandLogoStructure}
 
 디자인 원칙:
 - 본문 텍스트: color는 #1a1a1a 부터 #333333 사이 (진한 검정)
@@ -204,6 +223,7 @@ ${fewShotSection}
 
 ⚠️ 이미지 사용 규칙 (중요):
 - 제품 이미지만 사용: {{PRODUCT_IMAGE_0}}, {{PRODUCT_IMAGE_1}}, ... {{PRODUCT_IMAGE_${imageCount - 1}}}
+${brandLogoRule}
 - 다른 이미지 URL이나 경로를 절대 사용하지 마세요
 
 🎨 시각적 다양성 (필수):
@@ -229,7 +249,20 @@ ${fewShotSection}
 ✅ 콘텐츠 일관성 (매우 중요!):
 - 이미지 텍스트 정보를 **정확히** 사용
 - 순서와 이름을 **절대** 바꾸지 마세요
+- 순서와 이름을 **절대** 바꾸지 마세요
 - 이미지와 텍스트는 **완벽히 일치**해야 함
+
+📢 **주의사항/안내문 자동 생성 (필수):**
+- 제품의 **카테고리와 특성**을 분석하여 적절한 주의사항을 3~5가지 작성하세요.
+- 예시:
+  - 식품: 알레르기 유발 물질, 보관 방법 (냉장/냉동), 유통기한
+  - 의류: 세탁 방법, 소재 특성, 이염 주의
+  - 전자기기: 방수 여부, 충전 시 주의사항, A/S 안내
+  - 유아동: 사용 연령, 작은 부품 주의
+- 디자인:
+  - 배경: 연한 회색(rgb(248, 250, 252)) 또는 연한 주의색(rgb(255, 251, 235))
+  - 아이콘: ⚠️, 📢, 💡 등을 적절히 활용
+  - 가독성: 깔끔한 리스트 형태나 박스 디자인
 
 기술 요구사항:
 1. 크기: 800px 고정 너비
@@ -306,6 +339,8 @@ ${fewShotSection}
 ❌ <div style="background: linear-gradient(180deg, rgb(240, 246, 255), rgb(255, 255, 255));">gradient 금지!</div>
 ❌ <div style="background: linear-gradient(45deg, rgb(255,0,0), rgb(0,255,0));">gradient 금지!</div>
 
+${brandLogoGuide}
+
 순수 HTML 코드만 반환하세요.
 `.trim();
 }
@@ -313,7 +348,7 @@ ${fewShotSection}
 /**
  * AI가 전체 디자인을 생성 (OCR 선처리 + Vision 모델)
  */
-export async function generateAIDesign(productInfo, productImages, styleExamples = [], imageAnalysis = null, styleAnalysis = null) {
+export async function generateAIDesign(productInfo, productImages, styleExamples = [], imageAnalysis = null, styleAnalysis = null, brandLogo = null) {
    try {
       if (!imageAnalysis) {
          imageAnalysis = {
@@ -331,7 +366,7 @@ export async function generateAIDesign(productInfo, productImages, styleExamples
       const imageTexts = await extractTextsFromImages(images);
 
       // 2단계: 프롬프트 생성 (OCR 결과 포함)
-      const basePrompt = buildDesignPrompt(productInfo, imageAnalysis, styleExamples, imageCount, imageTexts, styleAnalysis);
+      const basePrompt = buildDesignPrompt(productInfo, imageAnalysis, styleExamples, imageCount, imageTexts, styleAnalysis, brandLogo);
 
       const visionPrompt = `${basePrompt}
 
@@ -364,6 +399,12 @@ export async function generateAIDesign(productInfo, productImages, styleExamples
       });
 
       cleanHTML = cleanHTML.replace(/\{\{PRODUCT_IMAGE\}\}/g, images[0]);
+
+      // 5단계: 브랜드 로고 플레이스홀더 교체 (업로드된 경우에만)
+      if (brandLogo) {
+         cleanHTML = cleanHTML.replace(/\{\{BRAND_LOGO\}\}/g, brandLogo);
+         console.log('✅ 브랜드 로고 적용 완료');
+      }
 
       // ✅ CSS 정제: html2canvas 호환성 보장
       cleanHTML = sanitizeCSS(cleanHTML);

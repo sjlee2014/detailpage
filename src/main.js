@@ -21,6 +21,7 @@ const state = {
   imageAnalysis: null,
   styleAnalysis: null, // 스타일 분석 결과 추가
   styleExamples: [],
+  brandLogoData: null, // 브랜드 로고 이미지 (base64)
 };
 
 // DOM 요소
@@ -52,6 +53,12 @@ const elements = {
   exampleGallery: document.getElementById('exampleGallery'),
   styleAnalysisResult: document.getElementById('styleAnalysisResult'),
   styleTags: document.getElementById('styleTags'),
+
+  // 브랜드 로고 관련
+  brandLogoSection: document.getElementById('brandLogoSection'),
+  brandLogoUploadArea: document.getElementById('brandLogoUploadArea'),
+  brandLogoInput: document.getElementById('brandLogoInput'),
+  brandLogoPreview: document.getElementById('brandLogoPreview'),
 };
 
 // ========== 초기화 ==========
@@ -119,6 +126,7 @@ elements.ruleModeBtn.addEventListener('click', () => {
   elements.aiModeBtn.classList.remove('active');
   elements.modeDescription.textContent = '미리 정의된 템플릿을 사용합니다';
   elements.styleExamplesSection.classList.add('hidden');
+  elements.brandLogoSection.classList.add('hidden');
   elements.templateSection.classList.remove('hidden');
 });
 
@@ -128,6 +136,7 @@ elements.aiModeBtn.addEventListener('click', () => {
   elements.ruleModeBtn.classList.remove('active');
   elements.modeDescription.textContent = 'AI가 전체 디자인을 창의적으로 생성합니다';
   elements.styleExamplesSection.classList.remove('hidden');
+  elements.brandLogoSection.classList.remove('hidden');
   elements.templateSection.classList.add('hidden');
 });
 
@@ -272,6 +281,51 @@ function renderStyleAnalysis(analysis) {
   }
 
   container.innerHTML = html;
+}
+
+// ========== 브랜드 로고 업로드 ==========
+
+elements.brandLogoUploadArea.addEventListener('click', () => {
+  elements.brandLogoInput.click();
+});
+
+elements.brandLogoInput.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    showAlert('이미지 파일만 업로드 가능합니다', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    state.brandLogoData = e.target.result;
+    renderBrandLogoPreview();
+    showAlert('브랜드 로고가 업로드되었습니다 ✓', 'success');
+  };
+  reader.readAsDataURL(file);
+});
+
+function renderBrandLogoPreview() {
+  if (!state.brandLogoData) {
+    elements.brandLogoPreview.innerHTML = '';
+    return;
+  }
+
+  elements.brandLogoPreview.innerHTML = `
+    <div class="example-item" style="position: relative; margin-top: 12px;">
+      <img src="${state.brandLogoData}" alt="브랜드 로고" style="max-width: 200px; height: auto; border-radius: 8px;" />
+      <button class="example-delete" id="deleteBrandLogo">×</button>
+    </div>
+  `;
+
+  document.getElementById('deleteBrandLogo').addEventListener('click', () => {
+    state.brandLogoData = null;
+    elements.brandLogoInput.value = '';
+    renderBrandLogoPreview();
+    showAlert('브랜드 로고가 삭제되었습니다', 'success');
+  });
 }
 
 // ========== 파일 업로드 (다중 지원) ==========
@@ -528,7 +582,8 @@ async function generateWithAI() {
     state.productImageData, // 배열 전달
     state.styleExamples,
     state.imageAnalysis,
-    state.styleAnalysis // 스타일 분석 결과 전달
+    state.styleAnalysis, // 스타일 분석 결과 전달
+    state.brandLogoData // 브랜드 로고 전달
   );
 
   const safeHTML = makeSafeHTML(html);

@@ -45,7 +45,7 @@ export async function htmlToBlob(element, format = 'jpg') {
 
         const options = {
             quality: 0.95,
-            pixelRatio: 2, // 고해상도
+            pixelRatio: 3, // 초고해상도 (약 300 DPI 수준)
             backgroundColor: '#ffffff',
             cacheBust: true,
         };
