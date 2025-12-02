@@ -16,8 +16,13 @@
   <div class="container">
     <!-- 헤더 -->
     <header class="header">
-      <h1>🎨 AI 상세페이지 생성기</h1>
-      <p class="header-subtitle">제품 정보만 입력하면 AI가 자동으로 멋진 상세페이지를 만들어드립니다</p>
+      <div class="header-content">
+        <h1>🎨 AI 상세페이지 생성기</h1>
+        <p class="header-subtitle">제품 정보만 입력하면 AI가 자동으로 멋진 상세페이지를 만들어드립니다</p>
+      </div>
+      <button id="openDraftsBtn" class="btn btn-primary">
+        🗃️ 보관함 <span class="badge" id="draftCount">0</span>
+      </button>
     </header>
 
     <!-- 메인 레이아웃 -->
@@ -141,18 +146,39 @@
           </div>
         </div>
 
-        <!-- 다운로드 버튼 (처음엔 숨김) -->
-        <button id="downloadBtn" class="btn btn-primary btn-full mt-lg hidden">
-          💾 이미지 다운로드
-        </button>
+        <!-- 버튼 그룹 -->
+        <div class="action-buttons hidden" id="actionButtons">
+          <button id="downloadBtn" class="btn btn-primary btn-full">
+            💾 이미지 다운로드
+          </button>
 
-        <!-- 🆕 재생성 버튼 (처음엔 숨김) -->
-        <button id="regenerateBtn" class="btn btn-secondary btn-full mt-md hidden">
-          🔄 같은 설정으로 재생성
-        </button>
+          <button id="saveDraftBtn" class="btn btn-success btn-full mt-sm">
+            💾 보관함에 저장
+          </button>
+
+          <button id="regenerateBtn" class="btn btn-secondary btn-full mt-sm">
+            🔄 같은 설정으로 재생성
+          </button>
+        </div>
       </div>
     </div>
   </div>
+
+  <!-- 보관함 모달 -->
+  <dialog id="draftsModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🗃️ 임시 보관함</h2>
+        <button id="closeDraftsBtn" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="draftsList" class="drafts-list">
+          <!-- 목록이 여기에 표시됨 -->
+          <p class="empty-message">저장된 상세페이지가 없습니다.</p>
+        </div>
+      </div>
+    </div>
+  </dialog>
 
   <!-- 템플릿 렌더링용 숨겨진 영역 -->
   <div id="templateRenderArea" style="position: absolute; left: -9999px; top: 0;"></div>

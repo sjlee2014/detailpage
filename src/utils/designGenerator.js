@@ -3,8 +3,9 @@
  * Gemini API를 사용하여 완전한 HTML/CSS 디자인 생성
  */
 
-import { generateContentWithImage, generateContent, extractTextFromImage } from './geminiClient.js';
+import { generateContentWithImage, generateContent, extractTextFromImage, analyzeImageComplete, analyzeImagesBatch } from './geminiClient.js';
 import { getExampleCounts } from './exampleManager.js';
+import { generateThumbnail } from './thumbnailGenerator.js';
 
 /**
  * CSS 정제: html2canvas 호환성 보장
@@ -109,24 +110,55 @@ function buildFewShotSection() {
 }
 
 /**
- * 🆕 모든 이미지에서 텍스트 추출 (OCR 선처리)
+ * 🆕 모든 이미지 통합 분석 (OCR + 패턴 + 색상) - 하이브리드 방식
+ * 1차: 배치 분석 시도 (API 1회) → 2차: 실패 시 개별 분석 (API N회)
  */
-async function extractTextsFromImages(productImages) {
-   console.log('📝 이미지 OCR 시작...');
-   const imageTexts = [];
+async function analyzeAllProductImages(productImages) {
+   console.log('🔍 모든 이미지 상세 분석 시작 (Vision API)...');
+
+   // 🚀 1차 시도: 배치 분석 (API 호출 1회)
+   console.log('📦 배치 분석 시도 중...');
+   const batchResults = await analyzeImagesBatch(productImages);
+
+   // 결과 검증: 모든 이미지가 제대로 분석되었는지 확인
+   const isValidBatch = batchResults.length === productImages.length &&
+      batchResults.every(r =>
+         r.pattern &&
+         r.pattern !== '분석 실패' &&
+         r.pattern !== '식별 불가' &&
+         r.visualDescription
+      );
+
+   if (isValidBatch) {
+      console.log('✅ 배치 분석 성공! API 호출 1회로 완료');
+      return batchResults;
+   }
+
+   // 🔄 2차 시도: 개별 분석으로 Fallback (API 호출 N회)
+   console.warn('⚠️ 배치 분석 실패 또는 불완전, 개별 분석으로 전환...');
+   const analysisResults = [];
 
    for (let i = 0; i < productImages.length; i++) {
       try {
-         const text = await extractTextFromImage(productImages[i]);
-         imageTexts.push(text || '');
-         console.log(`✅ 이미지 ${i}: "${text || '(텍스트 없음)'}"`);
+         const result = await analyzeImageComplete(productImages[i]);
+         analysisResults.push({
+            index: i,
+            ...result
+         });
+         console.log(`✅ 이미지 ${i} 개별 분석 완료: ${result.pattern}`);
       } catch (error) {
-         console.error(`❌ 이미지 ${i} OCR 실패:`, error);
-         imageTexts.push('');
+         console.error(`❌ 이미지 ${i} 분석 실패:`, error);
+         analysisResults.push({
+            index: i,
+            ocrText: '',
+            pattern: '분석 실패',
+            visualDescription: '',
+            colors: []
+         });
       }
    }
 
-   return imageTexts;
+   return analysisResults;
 }
 
 /**
@@ -138,21 +170,40 @@ function buildDesignPrompt(productInfo, imageAnalysis, styleExamples, imageCount
 
    const fewShotSection = buildFewShotSection();
 
-   // 🆕 이미지 텍스트 정보 생성
-   let imageTextSection = '';
+   // 🆕 이미지 상세 분석 정보 생성 (패턴 + 텍스트)
+   let imageAnalysisSection = '';
    if (imageTexts && imageTexts.length > 0) {
-      const validTexts = imageTexts.filter(t => t && t.trim().length > 0);
-      if (validTexts.length > 0) {
-         imageTextSection = `
-📸 제품 이미지 내 텍스트 정보:
-${imageTexts.map((text, idx) => text ? `- 이미지 ${idx}: "${text}"` : '').filter(t => t).join('\n')}
+      imageAnalysisSection = `
+📸 제품 이미지 상세 분석 정보 (Vision API 결과):
+${imageTexts.map((info, idx) => `
+[이미지 ${idx}]
+- OCR 텍스트: "${info.ocrText || '없음'}"
+- 시각적 패턴: ${info.pattern}
+- 시각적 특징: ${info.visualDescription}
+- 주요 색상: ${info.colors.join(', ')}
+`).join('\n')}
 
-⚠️ 중요: 위의 텍스트를 HTML에서 **정확히 순서대로** 사용하세요!
-- 이미지 0에 "정약용"이 있다면, 그 이미지 아래 텍스트도 "정약용"
-- 순서를 절대 바꾸지 마세요
-- 다른 이름으로 대체하지 마세요
+⚠️ 중요: 각 이미지의 **패턴과 텍스트를 정확히 매칭**하여 사용하세요!
+- 예: 이미지 0이 "꽃 무늬"라면, 이미지 0 주변 텍스트도 "꽃" 관련 내용이어야 함
+- 예: 이미지 1이 "태극기"라면, 이미지 1 주변 텍스트도 "태극기" 관련 내용이어야 함
+- 이미지 순서를 절대 섞지 마세요.
+
+🚫 **분석 내용 출력 금지 (매우 중요):**
+- 위에서 제공된 '이미지 분석 정보'(OCR 텍스트, 시각적 패턴 등)는 **당신이 디자인할 때 참고만 하세요.**
+- **절대** 결과물 HTML에 '(이미지 1: ...)' 처럼 분석 내용을 그대로 적지 마세요.
+- 대신, 그 분석 내용을 **구매자를 유혹하는 감성적인 카피**로 바꿔서 작성하세요.
+  - ❌ 나쁜 예: (이미지 1: 흑백 라인 드로잉, 기하학적 패턴)
+  - ✅ 좋은 예: 나만의 감각으로 채워가는 섬세한 라인 드로잉
+  - ❌ 나쁜 예: (이미지 2: 완성된 컬러 예시, 태극 문양)
+  - ✅ 좋은 예: 한국의 멋을 담은 태극 문양 완성작
+
+🎨 **제목 색상 다양화 (필수):**
+- 매번 똑같은 파란색/검정색 제목은 지루합니다.
+- **제품 이미지에서 추출한 주요 색상**을 제목(h1, h2) 색상으로 적극 활용하세요.
+- 제품이 붉은 톤이면 제목도 **세련된 와인색**이나 **강렬한 레드**로,
+- 제품이 자연 친화적이면 **딥 그린**이나 **올리브 색**으로 설정하세요.
+- 단, **가독성**은 유지해야 하므로 너무 연한 색은 피하세요.
 `;
-      }
    }
 
    // 🆕 브랜드 로고 관련 프롬프트 섹션 생성
@@ -168,7 +219,7 @@ ${imageTexts.map((text, idx) => text ? `- 이미지 ${idx}: "${text}"` : '').fil
 - 상세페이지 **맨 마지막** (모든 콘텐츠 이후)에 브랜드 로고를 배치하세요
 - HTML: <img src="{{BRAND_LOGO}}" alt="브랜드 로고" style="max-width: 300px; height: auto;" />
 - 배치: 중앙 정렬(text-align: center), 충분한 여백(padding: 40px 60px 50px)
-- 배경: 연한 회색 rgb(241, 245, 249)
+- 배경: 깔끔한 흰색 rgb(255, 255, 255) 또는 연한 배경
 `;
    }
 
@@ -180,18 +231,17 @@ ${imageTexts.map((text, idx) => text ? `- 이미지 ${idx}: "${text}"` : '').fil
 이미지 개수: ${imageCount}장
 카테고리: ${category}
 
-${imageTextSection}
+${imageAnalysisSection}
 
 ${fewShotSection}
 
 필수 디자인 구조:
-1. 제품 헤더 섹션
-2. 메인 비주얼 영역
-3. 신뢰도 지표 섹션
-4. 핵심 특징 섹션
-5. 상세 설명 섹션
-6. **주의사항 및 안내 섹션** (제품 특성에 맞춰 자동 생성)
-7. CTA 버튼
+1. 메인 비주얼 영역
+2. 신뢰도 지표 섹션
+3. 핵심 특징 섹션
+4. 상세 설명 섹션
+5. **주의사항 및 안내 섹션** (제품 특성에 맞춰 자동 생성)
+6. CTA 버튼
 ${brandLogoStructure}
 
 디자인 원칙:
@@ -251,6 +301,7 @@ ${brandLogoRule}
 - 순서와 이름을 **절대** 바꾸지 마세요
 - 순서와 이름을 **절대** 바꾸지 마세요
 - 이미지와 텍스트는 **완벽히 일치**해야 함
+- **이미지 패턴에 맞는 설명**을 작성하세요 (꽃 무늬 사진엔 꽃 설명, 태극기 사진엔 태극기 설명)
 
 📢 **주의사항/안내문 자동 생성 (필수):**
 - 제품의 **카테고리와 특성**을 분석하여 적절한 주의사항을 3~5가지 작성하세요.
@@ -265,7 +316,7 @@ ${brandLogoRule}
   - 가독성: 깔끔한 리스트 형태나 박스 디자인
 
 기술 요구사항:
-1. 크기: 800px 고정 너비
+1. **너비: 100% (전체 너비 사용, max-width 금지!)**
 2. **모든 CSS는 인라인 스타일로 작성** (class 금지)
 3. div로 시작하는 HTML (html, head, meta 태그 금지)
 4. 안전한 HTML만 사용
@@ -362,11 +413,12 @@ export async function generateAIDesign(productInfo, productImages, styleExamples
       const images = Array.isArray(productImages) ? productImages : [productImages];
       const imageCount = images.length;
 
-      // 🆕 1단계: 모든 이미지에서 텍스트 추출 (OCR)
-      const imageTexts = await extractTextsFromImages(images);
+      // 🆕 1단계: 모든 이미지 상세 분석 (OCR + 패턴 + 색상)
+      // Gemini 1.5 Flash를 사용하므로 모든 이미지를 분석해도 비용 부담 없음
+      const imageAnalysisResults = await analyzeAllProductImages(images);
 
-      // 2단계: 프롬프트 생성 (OCR 결과 포함)
-      const basePrompt = buildDesignPrompt(productInfo, imageAnalysis, styleExamples, imageCount, imageTexts, styleAnalysis, brandLogo);
+      // 2단계: 프롬프트 생성 (상세 분석 결과 포함)
+      const basePrompt = buildDesignPrompt(productInfo, imageAnalysis, styleExamples, imageCount, imageAnalysisResults, styleAnalysis, brandLogo);
 
       const visionPrompt = `${basePrompt}
 
@@ -392,7 +444,34 @@ export async function generateAIDesign(productInfo, productImages, styleExamples
 
       let cleanHTML = extractHTML(html);
 
-      // 4단계: 이미지 플레이스홀더 교체
+      // 🎨 4단계: 썸네일 생성 및 삽입
+      console.log('🎨 고퀄리티 썸네일 생성 중...');
+      let thumbnailHTML = '';
+      try {
+         const thumbnail = await generateThumbnail(productInfo, images, imageAnalysis);
+         if (thumbnail) {
+            thumbnailHTML = thumbnail;
+            console.log('✅ 썸네일 생성 완료');
+         } else {
+            console.warn('⚠️ 썸네일 생성 실패, 기본 헤더 사용');
+         }
+      } catch (thumbnailError) {
+         console.error('❌ 썸네일 생성 중 오류:', thumbnailError);
+         console.log('⚠️ 썸네일 없이 진행');
+      }
+
+      // 썸네일과 본문을 wrapper로 감싸기 (전체 너비 보장)
+      if (thumbnailHTML) {
+         cleanHTML = `
+<div style="width: 100%; margin: 0; padding: 0; box-sizing: border-box;">
+  ${thumbnailHTML}
+  ${cleanHTML}
+</div>
+         `.trim();
+         console.log('✅ 썸네일 및 본문 통합 완료');
+      }
+
+      // 5단계: 이미지 플레이스홀더 교체
       images.forEach((imgData, index) => {
          const placeholder = new RegExp(`\\{\\{PRODUCT_IMAGE_${index}\\}\\}`, 'g');
          cleanHTML = cleanHTML.replace(placeholder, imgData);

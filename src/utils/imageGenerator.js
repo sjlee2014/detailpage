@@ -48,6 +48,7 @@ export async function htmlToBlob(element, format = 'jpg') {
             pixelRatio: 3, // 초고해상도 (약 300 DPI 수준)
             backgroundColor: '#ffffff',
             cacheBust: true,
+            skipFonts: true, // CORS 오류 방지 (외부 폰트 건너뛰기)
         };
 
         let blob;

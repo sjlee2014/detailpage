@@ -15,12 +15,12 @@ if (!API_KEY) {
 // Gemini AI 초기화
 let genAI = null;
 let model = null;
-let currentModelName = 'gemini-2.5-pro-preview-03-25'; // 🥇 Gemini 2.5 Pro (한국어 OCR 최강!)
+let currentModelName = 'gemini-1.5-flash'; // ⚡ Gemini 1.5 Flash (무료, 빠름, Vision 지원)
 
 /**
  * Gemini API 초기화
  */
-export function initGemini(modelName = 'gemini-2.5-pro-preview-03-25') {
+export function initGemini(modelName = 'gemini-1.5-flash') {
     if (!API_KEY) {
         throw new Error('API 키가 설정되지 않았습니다. .env 파일에 VITE_GEMINI_API_KEY를 추가하세요.');
     }
@@ -71,13 +71,10 @@ export async function testConnection() {
     const availableModels = await listAvailableModels();
 
     let modelsToTry = [
-        'gemini-2.5-pro-preview-03-25',  // 🥇 최신 최강 모델 (한국어 OCR 최고)
-        'gemini-2.0-flash-exp',
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-002',
+        'gemini-1.5-flash',      // ⚡ 1순위: 무료, 빠름, Vision 지원
+        'gemini-2.0-flash-exp',  // 🚀 2순위: 최신 무료 (실험적)
         'gemini-1.5-pro',
-        'gemini-pro',
-        'gemini-1.0-pro'
+        'gemini-2.5-pro-preview-03-25',
     ];
 
     // 조회된 모델이 있으면 그것을 우선 시도
@@ -280,38 +277,181 @@ JSON만 반환하세요.
 }
 
 /**
- * 🆕 이미지에서 텍스트 추출 (OCR)
+ * 🆕 이미지 통합 분석 (OCR + 패턴 + 색상) - API 호출 1회로 해결
  */
-export async function extractTextFromImage(imageData) {
+export async function analyzeImageComplete(imageData) {
     const prompt = `
-이 이미지에서 보이는 모든 텍스트를 추출해주세요.
+당신은 20년 경력의 시각 디자인 분석 전문가입니다. 
+이 이미지를 픽셀 단위로 정밀하게 분석하여 다음 정보를 JSON 형식으로 추출하세요.
 
-규칙:
-- 한국어 텍스트를 정확히 읽어주세요
-- 여러 텍스트가 있다면 모두 추출
-- 텍스트만 반환 (설명 없이)
-- 텍스트가 없으면 "없음" 반환
+1. **객체 식별 및 묘사 (pattern)**:
+   - 이미지에 등장하는 각 사물의 **고유한 형태적 특징**을 아주 구체적으로 묘사하세요.
+   - 예: "8개의 꽃잎이 있는 연꽃", "중앙에 회오리 치는 태극 문양", "기하학적 빗살무늬"
+   - 뭉뚱그려 "전통 문양"이라고 하지 말고, 서로 어떻게 다른지 **차이점**을 명확히 구분하세요.
 
-형식:
-텍스트1
-텍스트2
-...
+2. **시각적 특징 요약 (visualDescription)**:
+   - 디자인 생성에 참고할 수 있도록 분위기, 스타일, 라인 두께, 채색 여부 등을 서술하세요.
+   - "색칠 전(라인 드로잉)"인지 "색칠 후(컬러)"인지 명시하세요.
+
+3. **OCR 텍스트 (ocrText)**:
+   - 이미지에 있는 모든 텍스트를 정확히 추출하세요. (없으면 빈 문자열)
+
+4. **주요 색상 (colors)**:
+   - 주요 색상 3가지를 Hex 코드로 추출하세요.
+
+JSON 형식:
+{
+  "ocrText": "...",
+  "pattern": "...",
+  "visualDescription": "...",
+  "colors": ["#...", "#...", "#..."]
+}
     `.trim();
 
     try {
         const response = await generateContentWithImage(prompt, imageData);
-        const text = response.trim();
+        const jsonMatch = response.match(/\{[\s\S]*\}/);
 
-        if (text && text !== '없음' && text.length > 0) {
-            console.log('📝 OCR 추출 텍스트:', text);
-            return text;
+        if (jsonMatch) {
+            const result = JSON.parse(jsonMatch[0]);
+            console.log('🔍 이미지 통합 분석 결과:', result);
+            return result;
         }
 
-        return null;
+        return { ocrText: '', pattern: '식별 불가', visualDescription: '', colors: [] };
     } catch (error) {
-        console.error('OCR 추출 실패:', error);
-        return null;
+        console.error('이미지 통합 분석 실패:', error);
+        return { ocrText: '', pattern: '분석 실패', visualDescription: '', colors: [] };
     }
+}
+
+/**
+ * 🆕 다중 이미지 일괄 분석 (Batch Analysis) - API 호출 최적화
+ * 여러 이미지를 한 번의 API 호출로 분석합니다.
+ * @param {Array<string>} imagesData - Base64 이미지 데이터 배열
+ * @returns {Promise<Array>} 분석 결과 배열
+ */
+export async function analyzeImagesBatch(imagesData) {
+    if (!imagesData || imagesData.length === 0) return [];
+
+    console.log(`📦 이미지 ${imagesData.length}장 일괄 분석 시작...`);
+
+    try {
+        if (!model) initGemini();
+
+        // 이미지 파트 생성
+        const imageParts = imagesData.map((imageData, idx) => {
+            const base64Data = imageData.includes(',') ? imageData.split(',')[1] : imageData;
+            let mimeType = 'image/jpeg';
+            if (imageData.startsWith('data:')) {
+                const matches = imageData.match(/data:([^;]+);/);
+                if (matches && matches[1]) mimeType = matches[1];
+            }
+            return {
+                inlineData: {
+                    data: base64Data,
+                    mimeType: mimeType
+                }
+            };
+        });
+
+        const prompt = `
+당신은 20년 경력의 시각 디자인 분석 전문가입니다.
+제공된 ${imagesData.length}장의 이미지를 **순서대로** 정밀 분석하여 JSON 배열로 반환하세요.
+
+🎯 **핵심 원칙: 각 이미지의 고유한 차이점을 명확히 구분하세요!**
+- 여러 이미지가 비슷해 보여도, **형태적 차이**를 구체적으로 묘사하세요.
+- 예: "전통 문양"이라고 뭉뚱그리지 말고 → "8개 꽃잎 연꽃", "중앙 태극 회오리", "기하학 빗살무늬"
+- 색상, 패턴, 텍스트를 **상대적으로 비교**하여 각 이미지의 특징을 부각하세요.
+
+각 이미지에 대해 다음 정보를 추출하세요:
+1. **pattern**: 객체의 고유한 형태적 특징 (구체적 묘사, 다른 이미지와 차이점 강조)
+2. **visualDescription**: 분위기, 스타일, 라인 두께, 채색 여부 ("색칠 전" vs "색칠 후" 명시)
+3. **ocrText**: 이미지 내 텍스트 (없으면 빈 문자열 "")
+4. **colors**: 주요 색상 3가지 (Hex 코드 배열)
+
+**반드시 이미지 순서를 지켜서** JSON 배열로 반환하세요.
+
+JSON 형식:
+[
+  {
+    "index": 0,
+    "ocrText": "텍스트 또는 빈 문자열",
+    "pattern": "구체적인 패턴 묘사",
+    "visualDescription": "시각적 특징",
+    "colors": ["#RRGGBB", "#RRGGBB", "#RRGGBB"]
+  },
+  {
+    "index": 1,
+    "ocrText": "...",
+    "pattern": "...",
+    "visualDescription": "...",
+    "colors": ["#...", "#...", "#..."]
+  }
+]
+
+**중요**: 반드시 ${imagesData.length}개의 객체를 포함한 배열을 반환하세요. JSON만 반환하고 다른 설명은 하지 마세요.
+        `.trim();
+
+        // 텍스트 프롬프트와 이미지 파트들을 함께 전송
+        const result = await model.generateContent([prompt, ...imageParts]);
+        const response = await result.response;
+        const text = response.text();
+
+        // JSON 배열 추출
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+            const results = JSON.parse(jsonMatch[0]);
+
+            // 결과 검증
+            if (results.length === imagesData.length) {
+                console.log(`✅ 이미지 ${results.length}장 일괄 분석 완료`);
+                return results;
+            } else {
+                console.warn(`⚠️ 분석 결과 개수 불일치: 예상 ${imagesData.length}, 실제 ${results.length}`);
+                return [];
+            }
+        }
+
+        console.warn('⚠️ 일괄 분석 결과에서 JSON을 찾을 수 없습니다.');
+        return [];
+    } catch (error) {
+        console.error('❌ 이미지 일괄 분석 실패:', error);
+        return [];
+    }
+}
+
+/**
+ * 🆕 이미지에서 텍스트 추출 (OCR) - 재시도 로직 포함
+ */
+export async function extractTextFromImage(imageData, maxRetries = 3) {
+    const prompt = `
+이미지에서 보이는 모든 텍스트를 정확히 추출하세요.
+- 한글 텍스트 최우선
+- 영어, 숫자 포함
+- 텍스트가 없으면 "없음" 반환
+- 설명 없이 텍스트만 반환
+    `.trim();
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            const response = await generateContentWithImage(prompt, imageData);
+            const text = response.trim();
+
+            if (text && text !== '없음' && text.length > 0) {
+                console.log(`📝 OCR 성공 (시도 ${attempt}/${maxRetries}):`, text);
+                return text;
+            }
+        } catch (error) {
+            console.warn(`⚠️ OCR 시도 ${attempt}/${maxRetries} 실패:`, error.message);
+            if (attempt < maxRetries) {
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+        }
+    }
+
+    console.error('❌ OCR 모든 재시도 실패');
+    return null;
 }
 
 /**

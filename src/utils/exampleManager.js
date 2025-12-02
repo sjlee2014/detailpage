@@ -9,14 +9,14 @@
  */
 const EXAMPLE_LIBRARY = {
     minimal: [
-        '/examples/minimal/example_smile_badge.jpg',
-        '/examples/minimal/example_korea_badge.jpg',
+        { path: '/examples/minimal/example_smile_badge.jpg', desc: '스마일 뱃지, 심플한 원형 디자인' },
+        { path: '/examples/minimal/example_korea_badge.jpg', desc: '태극 문양 뱃지, 한국적인 디자인' },
     ],
     rich: [
-        '/examples/rich/example_long_detail.jpg',
-        '/examples/rich/example_colorful_house.jpg',
-        '/examples/rich/example_snowflake_sticker.png',
-        '/examples/rich/example_ornament_collection.png',
+        { path: '/examples/rich/example_long_detail.jpg', desc: '긴 상세페이지, 다양한 섹션 구성' },
+        { path: '/examples/rich/example_colorful_house.jpg', desc: '화려한 색감의 집 모형, 다채로운 배경' },
+        { path: '/examples/rich/example_snowflake_sticker.png', desc: '눈송이 스티커, 겨울 분위기' },
+        { path: '/examples/rich/example_ornament_collection.png', desc: '오너먼트 컬렉션, 그리드 배치' },
     ]
 };
 
@@ -26,7 +26,8 @@ const EXAMPLE_LIBRARY = {
  * @returns {Array<string>} 이미지 경로 배열
  */
 export function getExamplePaths(style = 'minimal') {
-    return EXAMPLE_LIBRARY[style] || [];
+    const examples = EXAMPLE_LIBRARY[style] || [];
+    return examples.map(ex => typeof ex === 'string' ? ex : ex.path);
 }
 
 /**

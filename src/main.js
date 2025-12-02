@@ -8,6 +8,7 @@ import { analyzeProductImage, analyzeStyleImage, testConnection } from './utils/
 import { generateAIDesign, generateAICopywriting } from './utils/designGenerator.js';
 import { makeSafeHTML } from './utils/htmlSanitizer.js';
 import { getExamples, saveExample, deleteExample } from './utils/styleManager.js';
+import { saveDraft, getDrafts, loadDraft, deleteDraft } from './utils/storageManager.js'; // 🆕
 
 // 전역 상태
 const state = {
@@ -41,6 +42,7 @@ const elements = {
   previewArea: document.getElementById('previewArea'),
   alertArea: document.getElementById('alertArea'),
   templateRenderArea: document.getElementById('templateRenderArea'),
+  actionButtons: document.getElementById('actionButtons'), // 🆕 버튼 그룹
 
   // AI 관련
   ruleModeBtn: document.getElementById('ruleModeBtn'),
@@ -59,6 +61,13 @@ const elements = {
   brandLogoUploadArea: document.getElementById('brandLogoUploadArea'),
   brandLogoInput: document.getElementById('brandLogoInput'),
   brandLogoPreview: document.getElementById('brandLogoPreview'),
+
+  // 🆕 임시 저장 관련
+  openDraftsBtn: document.getElementById('openDraftsBtn'),
+  saveDraftBtn: document.getElementById('saveDraftBtn'),
+  draftsModal: document.getElementById('draftsModal'),
+  closeDraftsBtn: document.getElementById('closeDraftsBtn'),
+  draftsList: document.getElementById('draftsList'),
 };
 
 // ========== 초기화 ==========
@@ -92,12 +101,23 @@ async function initializeApp() {
 function saveFormData() {
   localStorage.setItem('productName', state.productName);
   localStorage.setItem('productDesc', state.productDesc);
+
+  // 브랜드 로고는 sessionStorage에 저장 (용량 제한 회피)
+  if (state.brandLogoData) {
+    try {
+      sessionStorage.setItem('brandLogo', state.brandLogoData);
+    } catch (e) {
+      console.warn('⚠️ 브랜드 로고가 너무 커서 저장 실패');
+    }
+  }
+
   console.log('💾 폼 데이터 저장됨');
 }
 
 function loadFormData() {
   const savedName = localStorage.getItem('productName');
   const savedDesc = localStorage.getItem('productDesc');
+  const savedBrandLogo = sessionStorage.getItem('brandLogo'); // sessionStorage에서 불러오기
 
   if (savedName) {
     elements.productName.value = savedName;
@@ -111,7 +131,31 @@ function loadFormData() {
     updateCharCount(elements.productDesc, elements.descCounter);
   }
 
-  if (savedName || savedDesc) {
+  // 브랜드 로고 복원
+  if (savedBrandLogo) {
+    state.brandLogoData = savedBrandLogo;
+    elements.brandLogoPreview.innerHTML = `
+      <img src="${savedBrandLogo}" alt="브랜드 로고" style="max-width: 200px; max-height: 100px; object-fit: contain;" />
+      <button id="removeBrandLogo" style="margin-top: 10px; padding: 8px 16px; background: rgb(239, 68, 68); color: white; border: none; border-radius: 6px; cursor: pointer;">
+        로고 삭제
+      </button>
+    `;
+
+    // 삭제 버튼 이벤트 리스너 추가
+    const removeBtn = document.getElementById('removeBrandLogo');
+    if (removeBtn) {
+      removeBtn.addEventListener('click', () => {
+        state.brandLogoData = null;
+        sessionStorage.removeItem('brandLogo'); // sessionStorage에서 삭제
+        elements.brandLogoPreview.innerHTML = '';
+        console.log('🗑️ 브랜드 로고 삭제됨');
+      });
+    }
+
+    console.log('✅ 브랜드 로고 복원됨');
+  }
+
+  if (savedName || savedDesc || savedBrandLogo) {
     console.log('✅ 이전 입력 데이터 복원됨');
   }
 
@@ -302,6 +346,16 @@ elements.brandLogoInput.addEventListener('change', (e) => {
   reader.onload = (e) => {
     state.brandLogoData = e.target.result;
     renderBrandLogoPreview();
+
+    // sessionStorage에 저장 (용량 제한 회피, 새로고침 시 유지)
+    try {
+      sessionStorage.setItem('brandLogo', e.target.result);
+      console.log('💾 브랜드 로고 저장됨 (sessionStorage)');
+    } catch (error) {
+      console.warn('⚠️ 브랜드 로고가 너무 커서 저장 실패:', error);
+      showAlert('⚠️ 로고가 너무 커서 새로고침 시 유지되지 않습니다', 'warning');
+    }
+
     showAlert('브랜드 로고가 업로드되었습니다 ✓', 'success');
   };
   reader.readAsDataURL(file);
@@ -323,6 +377,10 @@ function renderBrandLogoPreview() {
   document.getElementById('deleteBrandLogo').addEventListener('click', () => {
     state.brandLogoData = null;
     elements.brandLogoInput.value = '';
+
+    // sessionStorage에서 삭제
+    sessionStorage.removeItem('brandLogo');
+
     renderBrandLogoPreview();
     showAlert('브랜드 로고가 삭제되었습니다', 'success');
   });
@@ -557,7 +615,7 @@ elements.generateBtn.addEventListener('click', async () => {
       await generateWithRules();
     }
 
-    elements.downloadBtn.classList.remove('hidden');
+    elements.actionButtons.classList.remove('hidden'); // 🆕 버튼 그룹 표시
     elements.previewArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   } catch (error) {
     console.error('생성 실패:', error);
@@ -693,7 +751,7 @@ elements.regenerateBtn.addEventListener('click', async () => {
     }
 
     // 다운로드 버튼 표시
-    elements.downloadBtn.classList.remove('hidden');
+    elements.actionButtons.classList.remove('hidden');
 
     // 스크롤
     elements.previewArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -705,6 +763,8 @@ elements.regenerateBtn.addEventListener('click', async () => {
     setLoading(false);
   }
 });
+
+
 
 // ========== 유틸리티 함수 ==========
 
@@ -758,5 +818,173 @@ function showAlert(message, type = 'info') {
     alert.remove();
   }, timeout);
 }
+
+// ========== 보관함 관련 ==========
+
+// 보관함 개수 업데이트
+async function updateDraftCount() {
+  try {
+    const drafts = await getDrafts();
+    const count = drafts.length;
+    const draftCountBadge = document.getElementById('draftCount');
+    if (draftCountBadge) {
+      draftCountBadge.textContent = count;
+    }
+  } catch (error) {
+    console.error('보관함 개수 업데이트 실패:', error);
+  }
+}
+
+// 보관함 목록 렌더링 (카드 형태)
+async function renderDraftsList() {
+  try {
+    const drafts = await getDrafts();
+
+    if (drafts.length === 0) {
+      elements.draftsList.innerHTML = '<p class="empty-message">저장된 상세페이지가 없습니다.</p>';
+      return;
+    }
+
+    elements.draftsList.innerHTML = drafts.map((draft, index) => {
+      const date = new Date(draft.timestamp);
+      const dateStr = date.toLocaleDateString('ko-KR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      return `
+        <div class="draft-card" data-id="${draft.id}">
+          <div class="draft-card-header">
+            <h3 class="draft-card-title">${draft.title || '제목 없음'}</h3>
+            <button class="draft-delete-btn" data-id="${draft.id}">×</button>
+          </div>
+          <div class="draft-card-meta">
+            <span class="draft-date">📅 ${dateStr}</span>
+            <span class="draft-images">🖼️ 이미지 ${draft.productInfo?.images?.length || 0}개</span>
+          </div>
+          <div class="draft-card-actions">
+            <button class="btn btn-primary btn-sm draft-load-btn" data-id="${draft.id}">
+              불러오기
+            </button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // 이벤트 리스너 추가
+    document.querySelectorAll('.draft-load-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const id = parseInt(e.target.dataset.id);
+        await loadDraftById(id);
+        elements.draftsModal.close();
+      });
+    });
+
+    document.querySelectorAll('.draft-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = parseInt(e.target.dataset.id);
+        if (confirm('정말 삭제하시겠습니까?')) {
+          await deleteDraft(id);
+          await renderDraftsList();
+          await updateDraftCount();
+          showAlert('삭제되었습니다', 'success');
+        }
+      });
+    });
+
+  } catch (error) {
+    console.error('목록 렌더링 실패:', error);
+    elements.draftsList.innerHTML = '<p class="empty-message">목록을 불러오는데 실패했습니다.</p>';
+  }
+}
+
+// 보관함에 저장
+async function saveToDrafts() {
+  if (!state.generatedData) {
+    showAlert('저장할 상세페이지가 없습니다', 'error');
+    return;
+  }
+
+  try {
+    const draftData = {
+      title: state.productName || '제목 없음',
+      html: state.generatedData.html,
+      productInfo: {
+        name: state.productName,
+        description: state.productDesc,
+        images: state.productImageData,
+      },
+    };
+
+    await saveDraft(draftData);
+    await updateDraftCount();
+    showAlert('보관함에 저장되었습니다! 🎉', 'success');
+  } catch (error) {
+    console.error('저장 실패:', error);
+    showAlert('저장에 실패했습니다', 'error');
+  }
+}
+
+// 보관함에서 불러오기
+async function loadDraftById(id) {
+  try {
+    const draft = await loadDraft(id);
+    if (!draft) {
+      showAlert('항목을 찾을 수 없습니다', 'error');
+      return;
+    }
+
+    // 상태 복원
+    state.productName = draft.productInfo.name;
+    state.productDesc = draft.productInfo.description;
+    state.productImageData = draft.productInfo.images || [];
+    state.generatedData = { html: draft.html };
+
+    // UI 업데이트
+    elements.productName.value = state.productName;
+    elements.productDesc.value = state.productDesc;
+    updateCharCount(elements.productName, elements.nameCounter);
+    updateCharCount(elements.productDesc, elements.descCounter);
+
+    // 이미지 미리보기 복원
+    renderImagePreviews();
+
+    // 상세페이지 표시
+    elements.previewArea.innerHTML = draft.html;
+    elements.actionButtons.classList.remove('hidden');
+
+    validateForm();
+    showAlert('상세페이지를 성공적으로 불러왔습니다! 🎉', 'success');
+
+  } catch (error) {
+    console.error('불러오기 실패:', error);
+    showAlert('불러오기에 실패했습니다', 'error');
+  }
+}
+
+// 보관함 이벤트 리스너
+if (elements.openDraftsBtn) {
+  elements.openDraftsBtn.addEventListener('click', async () => {
+    await renderDraftsList();
+    elements.draftsModal.showModal();
+  });
+}
+
+if (elements.closeDraftsBtn) {
+  elements.closeDraftsBtn.addEventListener('click', () => {
+    elements.draftsModal.close();
+  });
+}
+
+if (elements.saveDraftBtn) {
+  elements.saveDraftBtn.addEventListener('click', saveToDrafts);
+}
+
+// 초기 개수 업데이트
+updateDraftCount();
 
 initializeApp();
