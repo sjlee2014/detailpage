@@ -139,6 +139,13 @@
 
       <!-- 프리뷰 영역 -->
       <div class="preview-container">
+        <!-- 편집 모드 토글 버튼 -->
+        <div class="preview-header hidden" id="previewHeader">
+          <button id="editModeBtn" class="btn btn-outline edit-mode-btn">
+            ✏️ 부분 수정
+          </button>
+        </div>
+
         <div class="preview-area" id="previewArea">
           <div class="preview-placeholder">
             <div class="preview-placeholder-icon">🖼️</div>
@@ -175,6 +182,28 @@
         <div id="draftsList" class="drafts-list">
           <!-- 목록이 여기에 표시됨 -->
           <p class="empty-message">저장된 상세페이지가 없습니다.</p>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 섹션 수정 모달 -->
+  <dialog id="editSectionModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>✏️ 섹션 수정</h2>
+        <button id="closeEditModalBtn" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="edit-modal-hint">선택한 섹션을 어떻게 수정할까요?</p>
+        <textarea id="editPrompt" class="form-textarea"
+          placeholder="예시:&#10;- 이 제목을 더 감성적으로 바꿔줘&#10;- 이 텍스트를 절반으로 줄여줘&#10;- 이 색상을 파란색으로 바꿔줘&#10;- 이 섹션을 완전히 삭제해줘"
+          rows="5"></textarea>
+        <div class="modal-actions">
+          <button id="cancelEditBtn" class="btn btn-secondary">취소</button>
+          <button id="applyEditBtn" class="btn btn-primary">
+            🤖 AI로 재생성
+          </button>
         </div>
       </div>
     </div>

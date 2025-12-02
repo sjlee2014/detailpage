@@ -9,6 +9,7 @@ import { generateAIDesign, generateAICopywriting } from './utils/designGenerator
 import { makeSafeHTML } from './utils/htmlSanitizer.js';
 import { getExamples, saveExample, deleteExample } from './utils/styleManager.js';
 import { saveDraft, getDrafts, loadDraft, deleteDraft } from './utils/storageManager.js'; // 🆕
+import { enableEditMode, disableEditMode, isEditMode, captureSelectedSection, regenerateSection, replaceSection, clearSelection } from './utils/editMode.js'; // 🆕 편집 모드
 
 // 전역 상태
 const state = {
@@ -23,6 +24,7 @@ const state = {
   styleAnalysis: null, // 스타일 분석 결과 추가
   styleExamples: [],
   brandLogoData: null, // 브랜드 로고 이미지 (base64)
+  isEditModeActive: false, // 🆕 편집 모드 활성화 상태
 };
 
 // DOM 요소
@@ -68,6 +70,15 @@ const elements = {
   draftsModal: document.getElementById('draftsModal'),
   closeDraftsBtn: document.getElementById('closeDraftsBtn'),
   draftsList: document.getElementById('draftsList'),
+
+  // 🆕 편집 모드 관련
+  previewHeader: document.getElementById('previewHeader'),
+  editModeBtn: document.getElementById('editModeBtn'),
+  editSectionModal: document.getElementById('editSectionModal'),
+  editPrompt: document.getElementById('editPrompt'),
+  applyEditBtn: document.getElementById('applyEditBtn'),
+  cancelEditBtn: document.getElementById('cancelEditBtn'),
+  closeEditModalBtn: document.getElementById('closeEditModalBtn'),
 };
 
 // ========== 초기화 ==========
@@ -662,6 +673,11 @@ async function generateWithAI() {
   // 🆕 재생성 버튼 표시
   elements.regenerateBtn.classList.remove('hidden');
 
+  // 🆕 편집 모드 버 표시 (AI 모드에서만)
+  if (state.aiMode) {
+    elements.previewHeader.classList.remove('hidden');
+  }
+
   showAlert('AI 디자인이 생성되었습니다! 🎉', 'success');
 }
 
@@ -987,4 +1003,126 @@ if (elements.saveDraftBtn) {
 // 초기 개수 업데이트
 updateDraftCount();
 
+// ========== 🆕 편집 모드 이벤트 리스너 ==========
+
+// 편집 모드 토글
+if (elements.editModeBtn) {
+  elements.editModeBtn.addEventListener('click', () => {
+    state.isEditModeActive = !state.isEditModeActive;
+
+    if (state.isEditModeActive) {
+      // 편집 모드 활성화
+      enableEditMode(elements.previewArea);
+      elements.editModeBtn.classList.add('active');
+      elements.editModeBtn.innerHTML = '🚫 편집 모드 종료';
+      showAlert('편집 모드가 활성화되었습니다. 수정할 영역을 클릭하세요.', 'info');
+    } else {
+      // 편집 모드 비활성화
+      disableEditMode();
+      elements.editModeBtn.classList.remove('active');
+      elements.editModeBtn.innerHTML = '✏️ 부분 수정';
+      showAlert('편집 모드가 비활성화되었습니다.', 'success');
+    }
+  });
+}
+
+// 섹션 선택 이벤트 수신
+document.addEventListener('sectionSelected', (e) => {
+  console.log('📍 섹션 선택 이벤트 수신');
+
+  // 모달 열기
+  if (elements.editSectionModal) {
+    elements.editSectionModal.showModal();
+    elements.editPrompt.value = '';
+    elements.editPrompt.focus();
+  }
+});
+
+// 편집 적용 버튼
+if (elements.applyEditBtn) {
+  elements.applyEditBtn.addEventListener('click', async () => {
+    const prompt = elements.editPrompt.value.trim();
+
+    if (!prompt) {
+      showAlert('수정 지시사항을 입력해주세요', 'error');
+      return;
+    }
+
+    try {
+      const sectionData = captureSelectedSection();
+
+      if (!sectionData) {
+        showAlert('선택된 섹션이 없습니다', 'error');
+        return;
+      }
+
+      console.log('🤖 섹션 재생성 시작...');
+      elements.applyEditBtn.disabled = true;
+      elements.applyEditBtn.innerHTML = '<span class="spinner"></span> AI 처리 중...';
+
+      showAlert('AI가 수정 중입니다... (10-15초 소요)', 'info');
+
+      // AI로 섹션 재생성
+      const newHtml = await regenerateSection(
+        sectionData.html,
+        prompt,
+        {
+          productName: state.productName,
+          productDesc: state.productDesc
+        }
+      );
+
+      // 섹션 교체
+      const success = replaceSection(sectionData.element, newHtml);
+
+      if (success) {
+        showAlert('섹션이 성공적으로 수정되었습니다! 🎉', 'success');
+
+        // 상태 업데이트 (다운로드용)
+        state.generatedData.html = elements.previewArea.innerHTML;
+
+        // 모달 닫기
+        elements.editSectionModal.close();
+        clearSelection();
+      } else {
+        showAlert('섹션 수정에 실패했습니다', 'error');
+      }
+
+    } catch (error) {
+      console.error('섹션 수정 오류:', error);
+      showAlert(`수정 실패: ${error.message}`, 'error');
+    } finally {
+      elements.applyEditBtn.disabled = false;
+      elements.applyEditBtn.innerHTML = '🤖 AI로 재생성';
+    }
+  });
+}
+
+// 편집 취소 버튼
+if (elements.cancelEditBtn) {
+  elements.cancelEditBtn.addEventListener('click', () => {
+    elements.editSectionModal.close();
+    clearSelection();
+  });
+}
+
+// 편집 모달 닫기 버튼
+if (elements.closeEditModalBtn) {
+  elements.closeEditModalBtn.addEventListener('click', () => {
+    elements.editSectionModal.close();
+    clearSelection();
+  });
+}
+
+// 모달 외부 클릭 시 선택 해제
+if (elements.editSectionModal) {
+  elements.editSectionModal.addEventListener('click', (e) => {
+    // 모달 배경 클릭 시 (::backdrop 클릭)
+    if (e.target === elements.editSectionModal) {
+      clearSelection();
+    }
+  });
+}
+
 initializeApp();
+

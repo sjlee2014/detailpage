@@ -965,3 +965,228 @@ p {
   gap: var(--spacing-sm);
   margin-top: var(--spacing-md);
 }
+
+/* ============================================
+   편집 모드 (Edit Mode) 스타일
+   ============================================ */
+
+/* 프리뷰 헤더 (편집 모드 버튼 영역) */
+.preview-header {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: var(--spacing-md);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-bottom: none;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  margin-bottom: -1px;
+}
+
+.edit-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  transition: all var(--transition-base);
+}
+
+.edit-mode-btn:hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.edit-mode-btn.active {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+/* 편집 모드 활성화 시 프리뷰 영역 스타일 */
+.preview-area.edit-mode-active {
+  cursor: crosshair;
+  position: relative;
+}
+
+.preview-area.edit-mode-active::before {
+  content: '✏️ 수정할 영역을 클릭하세요';
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(99, 102, 241, 0.95);
+  color: white;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: var(--shadow-lg);
+  animation: fadeIn 0.3s ease;
+}
+
+/* 섹션 하이라이트 (마우스 오버) */
+.section-highlight {
+  outline: 3px dashed var(--primary-color) !important;
+  outline-offset: 2px;
+  background: rgba(99, 102, 241, 0.05) !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast) !important;
+  position: relative;
+  z-index: 10;
+}
+
+.section-highlight::after {
+  content: '클릭하여 수정';
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(99, 102, 241, 0.95);
+  color: white;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1001;
+  box-shadow: var(--shadow-md);
+}
+
+/* 섹션 선택됨 (클릭 후) */
+.section-selected {
+  outline: 4px solid var(--accent-color) !important;
+  outline-offset: 4px;
+  background: rgba(236, 72, 153, 0.08) !important;
+  position: relative;
+  z-index: 20;
+  animation: pulseSelection 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseSelection {
+
+  0%,
+  100% {
+    outline-color: var(--accent-color);
+  }
+
+  50% {
+    outline-color: var(--primary-color);
+  }
+}
+
+.section-selected::after {
+  content: '✓ 선택됨';
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(236, 72, 153, 0.95);
+  color: white;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 1001;
+  box-shadow: var(--shadow-lg);
+}
+
+/* 편집 모달 스타일 */
+.edit-modal-hint {
+  color: var(--text-secondary);
+  font-size: 0.938rem;
+  margin-bottom: var(--spacing-md);
+  padding: var(--spacing-sm);
+  background: rgba(99, 102, 241, 0.05);
+  border-left: 3px solid var(--primary-color);
+  border-radius: var(--radius-sm);
+}
+
+.modal-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+  justify-content: flex-end;
+}
+
+.modal-actions .btn {
+  flex: 1;
+  max-width: 200px;
+}
+
+/* 모달 스타일 (기존에 없는 경우) */
+.modal {
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: 0;
+  background: transparent;
+  max-width: 600px;
+  width: 90%;
+  box-shadow: var(--shadow-xl);
+}
+
+.modal::backdrop {
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+}
+
+.modal-content {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--spacing-lg);
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-tertiary);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--text-primary);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 2rem;
+  cursor: pointer;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
+  line-height: 1;
+}
+
+.close-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  transform: rotate(90deg);
+}
+
+.modal-body {
+  padding: var(--spacing-xl);
+}
+
+/* 프리뷰 헤더가 표시될 때 프리뷰 영역 상단 둥근 모서리 제거 */
+.preview-header:not(.hidden)+.preview-area {
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
