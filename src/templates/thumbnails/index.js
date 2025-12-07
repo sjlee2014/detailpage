@@ -8,6 +8,7 @@ export { generateCenterHero } from './centerHero.js';
 export { generateVerticalStack } from './verticalStack.js';
 export { generateDiagonalDynamic } from './diagonalDynamic.js';
 export { generateMinimalElegance } from './minimalElegance.js';
+export { generateLayeredArch } from './layeredArch.js';
 
 /**
  * 템플릿 메타데이터
@@ -37,5 +38,10 @@ export const TEMPLATE_META = {
         name: 'Minimal Elegance',
         description: '미니멀 - 고급스럽고 세련',
         suitableFor: ['럭셔리', '프리미엄', '미니멀', '고급', '예술']
+    },
+    layeredArch: {
+        name: 'Layered Arch',
+        description: '아치형 창문 - 고급스러운 감성 (고퀄리티)',
+        suitableFor: ['감성', '굿즈', '예술', '인테리어', '프리미엄']
     }
 };

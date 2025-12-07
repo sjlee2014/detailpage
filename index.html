@@ -20,9 +20,12 @@
         <h1>🎨 AI 상세페이지 생성기</h1>
         <p class="header-subtitle">제품 정보만 입력하면 AI가 자동으로 멋진 상세페이지를 만들어드립니다</p>
       </div>
-      <button id="openDraftsBtn" class="btn btn-primary">
-        🗃️ 보관함 <span class="badge" id="draftCount">0</span>
-      </button>
+      <div class="header-actions">
+        <a href="badge-generator.html" class="btn btn-secondary">🔘 뱃지 생성기</a>
+        <button id="openDraftsBtn" class="btn btn-primary">
+          🗃️ 보관함 <span class="badge" id="draftCount">0</span>
+        </button>
+      </div>
     </header>
 
     <!-- 메인 레이아웃 -->
@@ -137,13 +140,15 @@
         </div>
       </div>
 
-      <!-- 프리뷰 영역 -->
+      <!-- 프리뷰 영역 ---->
       <div class="preview-container">
-        <!-- 편집 모드 토글 버튼 -->
+        <!-- 편집 모드 탭 -->
         <div class="preview-header hidden" id="previewHeader">
-          <button id="editModeBtn" class="btn btn-outline edit-mode-btn">
-            ✏️ 부분 수정
-          </button>
+          <div class="edit-mode-tabs">
+            <button id="aiEditBtn" class="edit-tab-btn">🤖 AI 편집</button>
+            <button id="visualEditBtn" class="edit-tab-btn">🎨 수동 편집</button>
+          </div>
+          <button id="exitEditBtn" class="btn btn-outline btn-sm">✕ 편집 종료</button>
         </div>
 
         <div class="preview-area" id="previewArea">
@@ -211,6 +216,9 @@
 
   <!-- 템플릿 렌더링용 숨겨진 영역 -->
   <div id="templateRenderArea" style="position: absolute; left: -9999px; top: 0;"></div>
+
+  <!-- 🆕 스타일 패널 (비주얼 에디터) -->
+  <div id="stylePanel" class="style-panel hidden"></div>
 
   <script type="module" src="/src/main.js"></script>
 </body>

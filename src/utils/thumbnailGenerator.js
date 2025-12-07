@@ -28,6 +28,7 @@ async function selectTemplate(productInfo, imageAnalysis) {
 3. verticalStack - 상하 분할, 그리드 (식품, 세트상품, 다양한 색상에 적합)
 4. diagonalDynamic - 대각선, 역동적 (스포츠, 활동적, 젊은 타겟에 적합)
 5. minimalElegance - 미니멀, 고급스러움 (럭셔리, 프리미엄, 미니멀에 적합)
+6. layeredArch - 아치형 창문, 감성적이고 고급스러운 레이어 (굿즈, 인테리어, 예술, 고퀄리티) **(강력 추천)**
 
 **템플릿 이름만** 반환하세요 (예: heroSplit)
   `.trim();
@@ -37,7 +38,7 @@ async function selectTemplate(productInfo, imageAnalysis) {
         const templateName = response.trim().toLowerCase();
 
         // 유효한 템플릿 이름인지 확인
-        const validTemplates = ['herosplit', 'centerhero', 'verticalstack', 'diagonaldynamic', 'minimalelegance'];
+        const validTemplates = ['herosplit', 'centerhero', 'verticalstack', 'diagonaldynamic', 'minimalelegance', 'layeredarch'];
         if (validTemplates.includes(templateName)) {
             console.log(`✅ AI가 선택한 템플릿: ${templateName}`);
             return templateName;
@@ -131,7 +132,8 @@ const TEMPLATE_MAP = {
     'centerhero': 'generateCenterHero',
     'verticalstack': 'generateVerticalStack',
     'diagonaldynamic': 'generateDiagonalDynamic',
-    'minimalelegance': 'generateMinimalElegance'
+    'minimalelegance': 'generateMinimalElegance',
+    'layeredarch': 'generateLayeredArch'
 };
 
 /**

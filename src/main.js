@@ -10,6 +10,8 @@ import { makeSafeHTML } from './utils/htmlSanitizer.js';
 import { getExamples, saveExample, deleteExample } from './utils/styleManager.js';
 import { saveDraft, getDrafts, loadDraft, deleteDraft } from './utils/storageManager.js'; // 🆕
 import { enableEditMode, disableEditMode, isEditMode, captureSelectedSection, regenerateSection, replaceSection, clearSelection } from './utils/editMode.js'; // 🆕 편집 모드
+import { enableVisualEditor, disableVisualEditor, isVisualEditorActive, selectElement as visualSelectElement, deselectAll as visualDeselectAll, applyStyle, deleteElement, getSelectedElement } from './utils/visualEditor.js'; // 🆕 비주얼 에디터
+import { initStylePanel } from './components/StylePanel.js'; // 🆕 스타일 패널
 
 // 전역 상태
 const state = {
@@ -25,7 +27,11 @@ const state = {
   styleExamples: [],
   brandLogoData: null, // 브랜드 로고 이미지 (base64)
   isEditModeActive: false, // 🆕 편집 모드 활성화 상태
+  editType: null, // 🆕 'ai' | 'visual' - 현재 활성화된 편집 모드 타입
 };
+
+// 비주얼 에디터용 전역 참조 (editMode.js에서 접근 가능하도록)
+window.appState = state;
 
 // DOM 요소
 const elements = {
@@ -73,7 +79,9 @@ const elements = {
 
   // 🆕 편집 모드 관련
   previewHeader: document.getElementById('previewHeader'),
-  editModeBtn: document.getElementById('editModeBtn'),
+  aiEditBtn: document.getElementById('aiEditBtn'), // AI 편집 탭
+  visualEditBtn: document.getElementById('visualEditBtn'), // 비주얼 편집 탭
+  exitEditBtn: document.getElementById('exitEditBtn'), // 편집 종료
   editSectionModal: document.getElementById('editSectionModal'),
   editPrompt: document.getElementById('editPrompt'),
   applyEditBtn: document.getElementById('applyEditBtn'),
@@ -685,7 +693,7 @@ async function generateWithAI() {
 async function generateWithRules() {
   showAlert('상세페이지를 생성하고 있습니다...', 'info');
 
-  const copywriting = generateCopywriting(state.productName, state.productDesc);
+  const copywriting = await generateCopywriting(state.productName, state.productDesc);
   state.generatedData = copywriting;
 
   const html = renderTemplate(
@@ -1003,28 +1011,84 @@ if (elements.saveDraftBtn) {
 // 초기 개수 업데이트
 updateDraftCount();
 
-// ========== 🆕 편집 모드 이벤트 리스너 ==========
+// ========== 🆕 비주얼 에디터 통합 ==========
 
-// 편집 모드 토글
-if (elements.editModeBtn) {
-  elements.editModeBtn.addEventListener('click', () => {
-    state.isEditModeActive = !state.isEditModeActive;
+// 스타일 패널 초기화
+initStylePanel();
 
-    if (state.isEditModeActive) {
-      // 편집 모드 활성화
-      enableEditMode(elements.previewArea);
-      elements.editModeBtn.classList.add('active');
-      elements.editModeBtn.innerHTML = '🚫 편집 모드 종료';
-      showAlert('편집 모드가 활성화되었습니다. 수정할 영역을 클릭하세요.', 'info');
-    } else {
-      // 편집 모드 비활성화
-      disableEditMode();
-      elements.editModeBtn.classList.remove('active');
-      elements.editModeBtn.innerHTML = '✏️ 부분 수정';
-      showAlert('편집 모드가 비활성화되었습니다.', 'success');
+// AI 편집 모드 탭
+if (elements.aiEditBtn) {
+  elements.aiEditBtn.addEventListener('click', () => {
+    if (state.editType === 'ai') return; // 이미 AI 모드
+
+    // 비주얼 에디터 비활성화
+    if (isVisualEditorActive()) {
+      disableVisualEditor();
     }
+
+    // AI 편집 모드 활성화
+    state.editType = 'ai';
+    state.isEditModeActive = true;
+    enableEditMode(elements.previewArea);
+
+    // 탭 상태 업데이트
+    elements.aiEditBtn.classList.add('active');
+    elements.visualEditBtn.classList.remove('active');
+
+    showAlert('AI 편집 모드: 섹션을 클릭하면 AI가 수정합니다', 'info');
+    console.log('🤖 AI 편집 모드 활성화');
   });
 }
+
+// 비주얼 편집 모드 탭
+if (elements.visualEditBtn) {
+  elements.visualEditBtn.addEventListener('click', () => {
+    if (state.editType === 'visual') return; // 이미 비주얼 모드
+
+    // AI 편집 모드 비활성화
+    if (isEditMode()) {
+      disableEditMode();
+    }
+
+    // 비주얼 편집 모드 활성화
+    state.editType = 'visual';
+    state.isEditModeActive = true;
+    enableVisualEditor(elements.previewArea);
+
+    // 탭 상태 업데이트
+    elements.visualEditBtn.classList.add('active');
+    elements.aiEditBtn.classList.remove('active');
+
+    showAlert('비주얼 편집 모드: 요소를 클릭하여 직접 편집하세요', 'info');
+    console.log('🎨 비주얼 편집 모드 활성화');
+  });
+}
+
+// 편집 종료 버튼
+if (elements.exitEditBtn) {
+  elements.exitEditBtn.addEventListener('click', () => {
+    // 활성화된 편집 모드 비활성화
+    if (state.editType === 'ai') {
+      disableEditMode();
+    } else if (state.editType === 'visual') {
+      disableVisualEditor();
+    }
+
+    // 상태 초기화
+    state.editType = null;
+    state.isEditModeActive = false;
+
+    // 탭 상태 초기화
+    elements.aiEditBtn.classList.remove('active');
+    elements.visualEditBtn.classList.remove('active');
+
+    showAlert('편집 모드가 종료되었습니다', 'success');
+    console.log('✅ 편집 모드 종료');
+  });
+}
+
+// ========== 🆕 AI 편집 모드 이벤트 리스너 (호환성 유지) ==========
+// 참고: 이제 탭 방식으로 통합되었지만, 기존 로직은 유지
 
 // 섹션 선택 이벤트 수신
 document.addEventListener('sectionSelected', (e) => {
