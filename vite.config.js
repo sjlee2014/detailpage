@@ -1,6 +1,14 @@
 import { defineConfig } from 'vite'
+import { resolve } from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-    // Vercel 배포용 - base 경로 불필요
+    build: {
+        rollupOptions: {
+            input: {
+                main: resolve(__dirname, 'index.html'),
+                badge: resolve(__dirname, 'badge-generator.html')
+            }
+        }
+    }
 })
