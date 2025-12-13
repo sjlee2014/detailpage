@@ -1,226 +1,163 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 
 <head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AI 상세페이지 생성기 - VibeCoding</title>
-  <meta name="description" content="AI를 활용한 쇼핑몰 상세페이지 자동 생성 도구" />
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>상세페이지 & 썸네일 생성기</title>
+  <meta name="description" content="AI를 활용한 쇼핑몰 상세페이지 및 썸네일 자동 생성 도구">
+  <link rel="icon" type="image/svg+xml" href="/vite.svg">
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    @font-face {
+      font-family: 'Jalnan2';
+      src: url('/font/Jalnan2TTF.ttf') format('truetype');
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #f0f2f5;
+    }
+
+    .app-header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 16px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    }
+
+    .app-header h1 {
+      color: white;
+      font-size: 22px;
+      font-weight: 700;
+      font-family: 'Jalnan2', 'Noto Sans KR', sans-serif;
+    }
+
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .app-header .nav-link {
+      color: rgba(255, 255, 255, 0.9);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 8px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+
+    .app-header .nav-link:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    /* 탭 스타일 */
+    .tab-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(135deg, #5a6fd6 0%, #6b4fa0 100%);
+      padding: 0 40px;
+    }
+
+    .tab-left {
+      display: flex;
+    }
+
+    .tab-right {
+      display: flex;
+      align-items: center;
+    }
+
+    .tab-link {
+      color: rgba(255, 255, 255, 0.9);
+      text-decoration: none;
+      font-size: 14px;
+      padding: 10px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 8px;
+      transition: all 0.3s;
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .tab-link:hover {
+      background: rgba(255, 255, 255, 0.2);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .tab-btn {
+      padding: 14px 28px;
+      background: transparent;
+      border: none;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .tab-btn:hover {
+      color: white;
+    }
+
+    .tab-btn.active {
+      color: white;
+      font-weight: 600;
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: white;
+      border-radius: 3px 3px 0 0;
+    }
+
+    .tab-content {
+      display: none;
+      min-height: calc(100vh - 110px);
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+  </style>
 </head>
 
 <body>
-  <div class="container">
-    <!-- 헤더 -->
-    <header class="header">
-      <div class="header-content">
-        <h1>🎨 AI 상세페이지 생성기</h1>
-        <p class="header-subtitle">제품 정보만 입력하면 AI가 자동으로 멋진 상세페이지를 만들어드립니다</p>
-      </div>
-      <div class="header-actions">
-        <a href="badge-generator.html" class="btn btn-secondary">🔘 뱃지 생성기</a>
-        <button id="openDraftsBtn" class="btn btn-primary">
-          🗃️ 보관함 <span class="badge" id="draftCount">0</span>
-        </button>
-      </div>
-    </header>
+  <header class="app-header">
+    <h1>🎨 상세페이지 & 썸네일 생성기</h1>
+  </header>
 
-    <!-- 메인 레이아웃 -->
-    <div class="main-layout">
-      <!-- 입력 영역 -->
-      <div class="input-section">
-        <div class="card">
-          <h2>제품 정보 입력</h2>
-
-          <!-- 이미지 업로드 -->
-          <div class="form-group">
-            <label>제품 이미지 (여러 장 가능)</label>
-            <div class="upload-area" id="fileUploadArea">
-              <div class="upload-icon">📁</div>
-              <p class="upload-text">이미지를 드래그하거나 클릭하세요</p>
-              <p class="upload-hint">JPG, PNG (최대 10MB, 최대 20장)</p>
-            </div>
-            <input type="file" id="fileInput" accept="image/*" multiple hidden />
-
-            <!-- 🆕 이미지 초기화 버튼 -->
-            <button id="clearImagesBtn" class="btn btn-outline mt-sm hidden">
-              🗑️ 이미지 전체 삭제
-            </button>
-
-            <div id="imagePreview" class="image-preview"></div>
-          </div>
-
-          <!-- 제품명 입력 -->
-          <div class="form-group">
-            <label class="form-label" for="productName">제품명</label>
-            <input type="text" id="productName" class="form-input" placeholder="예: 신선한 국내산 사과" maxlength="50" />
-            <div class="char-counter">
-              <span id="nameCounter">0</span> / 50
-            </div>
-          </div>
-
-          <!-- 짧은 설명 입력 -->
-          <div class="form-group">
-            <label class="form-label" for="productDesc">짧은 설명</label>
-            <textarea id="productDesc" class="form-textarea"
-              placeholder="제품의 핵심 특징을 간단하게 설명해주세요 (예: 아삭아삭한 식감과 달콤한 맛이 일품인 GAP 인증 사과입니다)" maxlength="500"></textarea>
-            <div class="char-counter">
-              <span id="descCounter">0</span> / 500
-            </div>
-          </div>
-
-          <!-- AI 모드 토글 -->
-          <div class="form-group">
-            <label class="form-label">생성 모드</label>
-            <div class="ai-mode-toggle">
-              <button type="button" class="mode-btn" id="ruleModeBtn">📝 규칙 기반</button>
-              <button type="button" class="mode-btn active" id="aiModeBtn">🤖 AI 생성</button>
-            </div>
-            <p class="mode-description" id="modeDescription">AI가 전체 디자인을 창의적으로 생성합니다</p>
-          </div>
-
-          <!-- 스타일 예시 업로드 (AI 모드일 때만) -->
-          <div class="form-group" id="styleExamplesSection">
-            <label class="form-label">스타일 학습 (선택사항)</label>
-            <p class="form-hint">기존 상세페이지를 업로드하면 AI가 스타일을 학습합니다 (최대 5개)</p>
-
-            <div class="style-upload-area" id="styleUploadArea">
-              <div class="upload-icon">🎨</div>
-              <p class="upload-text">예시 이미지 업로드</p>
-              <input type="file" id="styleInput" class="file-input" accept="image/*" multiple />
-            </div>
-
-            <div class="example-gallery" id="exampleGallery"></div>
-
-            <!-- 학습된 스타일 태그 표시 -->
-            <div id="styleAnalysisResult" class="style-analysis-result hidden">
-              <div class="analysis-header">
-                <span class="analysis-icon">🧠</span>
-                <span class="analysis-title">AI가 학습한 스타일 DNA</span>
-              </div>
-              <div class="style-tags" id="styleTags"></div>
-            </div>
-          </div>
-
-          <!-- 브랜드 로고 업로드 (AI 모드일 때만) -->
-          <div class="form-group" id="brandLogoSection">
-            <label class="form-label">브랜드 로고 (선택사항)</label>
-            <p class="form-hint">브랜드 로고를 업로드하면 AI가 상세페이지 하단에 자동으로 배치합니다</p>
-
-            <div class="style-upload-area" id="brandLogoUploadArea">
-              <div class="upload-icon">🏷️</div>
-              <p class="upload-text">브랜드 로고 업로드</p>
-              <input type="file" id="brandLogoInput" class="file-input" accept="image/*" />
-            </div>
-
-            <div class="brand-logo-preview" id="brandLogoPreview"></div>
-          </div>
-
-          <!-- 템플릿 선택 (규칙 기반 모드일 때만) -->
-          <div class="form-group hidden" id="templateSection">
-            <label class="form-label">템플릿 선택</label>
-            <div class="template-selector">
-              <div class="template-option selected" data-template="cute">
-                <div class="template-thumbnail" style="background: linear-gradient(135deg, #93c5fd, #6ee7b7);"></div>
-                <div class="template-name">귀여운 스타일</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 생성 버튼 -->
-          <button id="generateBtn" class="btn btn-primary btn-full" disabled>
-            <span id="btnText">상세페이지 생성하기</span>
-          </button>
-
-          <!-- 알림 영역 -->
-          <div id="alertArea"></div>
-        </div>
-      </div>
-
-      <!-- 프리뷰 영역 ---->
-      <div class="preview-container">
-        <!-- 편집 모드 탭 -->
-        <div class="preview-header hidden" id="previewHeader">
-          <div class="edit-mode-tabs">
-            <button id="aiEditBtn" class="edit-tab-btn">🤖 AI 편집</button>
-            <button id="visualEditBtn" class="edit-tab-btn">🎨 수동 편집</button>
-          </div>
-          <button id="exitEditBtn" class="btn btn-outline btn-sm">✕ 편집 종료</button>
-        </div>
-
-        <div class="preview-area" id="previewArea">
-          <div class="preview-placeholder">
-            <div class="preview-placeholder-icon">🖼️</div>
-            <p>생성된 상세페이지가 여기에 표시됩니다</p>
-          </div>
-        </div>
-
-        <!-- 버튼 그룹 -->
-        <div class="action-buttons hidden" id="actionButtons">
-          <button id="downloadBtn" class="btn btn-primary btn-full">
-            💾 이미지 다운로드
-          </button>
-
-          <button id="saveDraftBtn" class="btn btn-success btn-full mt-sm">
-            💾 보관함에 저장
-          </button>
-
-          <button id="regenerateBtn" class="btn btn-secondary btn-full mt-sm">
-            🔄 같은 설정으로 재생성
-          </button>
-        </div>
-      </div>
+  <nav class="tab-container">
+    <div class="tab-left">
+      <button class="tab-btn active" data-tab="detail-page">📝 상세페이지</button>
+      <button class="tab-btn" data-tab="thumbnail">🖼️ 썸네일 생성</button>
     </div>
-  </div>
-
-  <!-- 보관함 모달 -->
-  <dialog id="draftsModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>🗃️ 임시 보관함</h2>
-        <button id="closeDraftsBtn" class="close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div id="draftsList" class="drafts-list">
-          <!-- 목록이 여기에 표시됨 -->
-          <p class="empty-message">저장된 상세페이지가 없습니다.</p>
-        </div>
-      </div>
+    <div class="tab-right">
+      <a href="badge-generator.html" class="tab-link">🔘 뱃지 생성기</a>
     </div>
-  </dialog>
+  </nav>
 
-  <!-- 섹션 수정 모달 -->
-  <dialog id="editSectionModal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>✏️ 섹션 수정</h2>
-        <button id="closeEditModalBtn" class="close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <p class="edit-modal-hint">선택한 섹션을 어떻게 수정할까요?</p>
-        <textarea id="editPrompt" class="form-textarea"
-          placeholder="예시:&#10;- 이 제목을 더 감성적으로 바꿔줘&#10;- 이 텍스트를 절반으로 줄여줘&#10;- 이 색상을 파란색으로 바꿔줘&#10;- 이 섹션을 완전히 삭제해줘"
-          rows="5"></textarea>
-        <div class="modal-actions">
-          <button id="cancelEditBtn" class="btn btn-secondary">취소</button>
-          <button id="applyEditBtn" class="btn btn-primary">
-            🤖 AI로 재생성
-          </button>
-        </div>
-      </div>
-    </div>
-  </dialog>
+  <div id="tab-detail-page" class="tab-content active"></div>
+  <div id="tab-thumbnail" class="tab-content"></div>
 
-  <!-- 템플릿 렌더링용 숨겨진 영역 -->
-  <div id="templateRenderArea" style="position: absolute; left: -9999px; top: 0;"></div>
-
-  <!-- 🆕 스타일 패널 (비주얼 에디터) -->
-  <div id="stylePanel" class="style-panel hidden"></div>
-
-  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/template-main.js"></script>
 </body>
 
 </html>

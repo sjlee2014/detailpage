@@ -154,86 +154,164 @@ class BadgeProcessor {
 
     /**
      * 색칠본 (상세페이지용) - 컬러 이미지
-     * 투명 배경에 원형 뱃지만 출력
+     * 고화질 인쇄 가능 (886px = 7.5cm @ 300dpi)
+     * 실제 핀뱃지처럼 돔(볼록) 효과 적용
      */
     createColoredForWeb(img) {
         const canvas = document.getElementById('coloredCanvas');
         const ctx = canvas.getContext('2d');
-        const size = WEB_SIZE;
-        const badgeRadius = size / 2 - 10; // 뱃지 크기 (여백 최소화)
+        const size = BADGE_SIZE;
+        const centerX = size / 2;
+        const centerY = size / 2;
+        const badgeRadius = size / 2 - 35;
 
-        // Resize canvas for web
         canvas.width = size;
         canvas.height = size;
-
-        // Clear canvas (transparent)
         ctx.clearRect(0, 0, size, size);
 
-        // Draw circular clip
+        // 1. 부드러운 드롭 쉐도우 (확산형)
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 30;
+        ctx.shadowOffsetX = 5;
+        ctx.shadowOffsetY = 8;
+        ctx.fillStyle = 'white';
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // 2. 이미지 클리핑
         ctx.save();
         ctx.beginPath();
-        ctx.arc(size / 2, size / 2, badgeRadius, 0, Math.PI * 2);
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
         ctx.clip();
 
-        // Draw image to fill the entire badge circle
         const scale = Math.max((badgeRadius * 2) / img.width, (badgeRadius * 2) / img.height);
         const imgW = img.width * scale;
         const imgH = img.height * scale;
         const x = (size - imgW) / 2;
         const y = (size - imgH) / 2;
         ctx.drawImage(img, x, y, imgW, imgH);
-
         ctx.restore();
 
-        // Draw badge border
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.lineWidth = 3;
+        // 3. 돔(볼록) 효과 - 가장자리로 갈수록 어두워짐 (Radial Gradient)
+        const domeGradient = ctx.createRadialGradient(
+            centerX, centerY - badgeRadius * 0.3, 0, // 중심을 살짝 위로
+            centerX, centerY, badgeRadius
+        );
+        domeGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');      // 중심: 투명
+        domeGradient.addColorStop(0.6, 'rgba(255, 255, 255, 0)');    // 중간: 투명
+        domeGradient.addColorStop(0.85, 'rgba(0, 0, 0, 0.03)');      // 시작 어두워짐
+        domeGradient.addColorStop(0.95, 'rgba(0, 0, 0, 0.08)');      // 더 어두움
+        domeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.15)');         // 가장자리: 어둡게
+
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(size / 2, size / 2, badgeRadius - 1, 0, Math.PI * 2);
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = domeGradient;
+        ctx.fillRect(0, 0, size, size);
+        ctx.restore();
+
+        // 4. 상단 하이라이트 (빛 반사)
+        const highlightGradient = ctx.createLinearGradient(
+            centerX, centerY - badgeRadius,
+            centerX, centerY + badgeRadius * 0.3
+        );
+        highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.35)');
+        highlightGradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.15)');
+        highlightGradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.05)');
+        highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = highlightGradient;
+        ctx.fillRect(0, 0, size, size);
+        ctx.restore();
+
+        // 5. 하단 가장자리 어둡게 (베벨 효과)
+        const bottomShadow = ctx.createLinearGradient(
+            centerX, centerY + badgeRadius * 0.5,
+            centerX, centerY + badgeRadius
+        );
+        bottomShadow.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        bottomShadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.05)');
+        bottomShadow.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = bottomShadow;
+        ctx.fillRect(0, 0, size, size);
+        ctx.restore();
+
+        // 6. 가장자리 얇은 테두리 (자연스럽게)
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, badgeRadius - 0.5, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.lineWidth = 1;
         ctx.stroke();
     }
 
     /**
      * 비색칠본 (상세페이지용) - 라인아트
-     * 투명 배경에 원형 뱃지만 출력
+     * 고화질 인쇄 가능 (886px = 7.5cm @ 300dpi)
+     * 실제 핀뱃지처럼 돔(볼록) 효과 적용
      */
     createLineArtForWeb(img) {
         const canvas = document.getElementById('printCanvas');
         const ctx = canvas.getContext('2d');
-        const size = WEB_SIZE;
-        const badgeRadius = size / 2 - 10; // 색칠본과 동일한 크기
+        const size = BADGE_SIZE;
+        const centerX = size / 2;
+        const centerY = size / 2;
+        const badgeRadius = size / 2 - 35;
 
-        // Resize canvas for web
         canvas.width = size;
         canvas.height = size;
-
-        // Clear canvas (transparent)
         ctx.clearRect(0, 0, size, size);
 
-        // Fill white circle for line art background
+        // 1. 부드러운 드롭 쉐도우
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 30;
+        ctx.shadowOffsetX = 5;
+        ctx.shadowOffsetY = 8;
         ctx.fillStyle = 'white';
         ctx.beginPath();
-        ctx.arc(size / 2, size / 2, badgeRadius, 0, Math.PI * 2);
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
         ctx.fill();
+        ctx.restore();
 
-        // Draw circular clip
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(size / 2, size / 2, badgeRadius, 0, Math.PI * 2);
-        ctx.clip();
+        // 2. 임시 캔버스에서 라인아트 변환
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = size;
+        tempCanvas.height = size;
+        const tempCtx = tempCanvas.getContext('2d');
 
-        // Draw image to fill the entire badge circle
+        tempCtx.fillStyle = 'white';
+        tempCtx.beginPath();
+        tempCtx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        tempCtx.fill();
+
+        tempCtx.save();
+        tempCtx.beginPath();
+        tempCtx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        tempCtx.clip();
+
         const scale = Math.max((badgeRadius * 2) / img.width, (badgeRadius * 2) / img.height);
         const imgW = img.width * scale;
         const imgH = img.height * scale;
         const x = (size - imgW) / 2;
         const y = (size - imgH) / 2;
-        ctx.drawImage(img, x, y, imgW, imgH);
+        tempCtx.drawImage(img, x, y, imgW, imgH);
+        tempCtx.restore();
 
-        ctx.restore();
-
-        // Convert to line art (grayscale + threshold)
-        const imageData = ctx.getImageData(0, 0, size, size);
+        // 라인아트 변환
+        const imageData = tempCtx.getImageData(0, 0, size, size);
         const data = imageData.data;
 
         for (let i = 0; i < data.length; i += 4) {
@@ -242,7 +320,6 @@ class BadgeProcessor {
             const b = data[i + 2];
             const a = data[i + 3];
 
-            // Skip fully transparent pixels
             if (a === 0) continue;
 
             const gray = 0.299 * r + 0.587 * g + 0.114 * b;
@@ -254,13 +331,75 @@ class BadgeProcessor {
             data[i + 2] = value;
         }
 
-        ctx.putImageData(imageData, 0, 0);
+        tempCtx.putImageData(imageData, 0, 0);
 
-        // Draw badge border
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
-        ctx.lineWidth = 3;
+        // 3. 라인아트를 메인 캔버스에 그리기
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(size / 2, size / 2, badgeRadius - 1, 0, Math.PI * 2);
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(tempCanvas, 0, 0);
+        ctx.restore();
+
+        // 4. 돔(볼록) 효과 - 가장자리로 갈수록 어두워짐
+        const domeGradient = ctx.createRadialGradient(
+            centerX, centerY - badgeRadius * 0.3, 0,
+            centerX, centerY, badgeRadius
+        );
+        domeGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        domeGradient.addColorStop(0.6, 'rgba(255, 255, 255, 0)');
+        domeGradient.addColorStop(0.85, 'rgba(0, 0, 0, 0.02)');
+        domeGradient.addColorStop(0.95, 'rgba(0, 0, 0, 0.06)');
+        domeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = domeGradient;
+        ctx.fillRect(0, 0, size, size);
+        ctx.restore();
+
+        // 5. 상단 하이라이트
+        const highlightGradient = ctx.createLinearGradient(
+            centerX, centerY - badgeRadius,
+            centerX, centerY + badgeRadius * 0.3
+        );
+        highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+        highlightGradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.12)');
+        highlightGradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.03)');
+        highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = highlightGradient;
+        ctx.fillRect(0, 0, size, size);
+        ctx.restore();
+
+        // 6. 하단 가장자리 어둡게
+        const bottomShadow = ctx.createLinearGradient(
+            centerX, centerY + badgeRadius * 0.5,
+            centerX, centerY + badgeRadius
+        );
+        bottomShadow.addColorStop(0, 'rgba(0, 0, 0, 0)');
+        bottomShadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.04)');
+        bottomShadow.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = bottomShadow;
+        ctx.fillRect(0, 0, size, size);
+        ctx.restore();
+
+        // 7. 가장자리 얇은 테두리
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, badgeRadius - 0.5, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
+        ctx.lineWidth = 1;
         ctx.stroke();
     }
 

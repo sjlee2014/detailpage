@@ -3,9 +3,52 @@
  * 요소 선택, 스타일 패널 제어, 이벤트 관리
  */
 
-import { pushHistory, undo, redo, initHistory, getHistoryInfo } from './undoRedo.js';
+// ========== 인라인 Undo/Redo 시스템 ==========
+let historyStack = [];
+let historyIndex = -1;
+const MAX_HISTORY = 30;
 
-// 전역 상태
+function pushHistory(html) {
+    // 현재 위치 이후의 히스토리 삭제
+    historyStack = historyStack.slice(0, historyIndex + 1);
+    historyStack.push(html);
+    if (historyStack.length > MAX_HISTORY) {
+        historyStack.shift();
+    }
+    historyIndex = historyStack.length - 1;
+}
+
+function undo() {
+    if (historyIndex > 0) {
+        historyIndex--;
+        return historyStack[historyIndex];
+    }
+    return null;
+}
+
+function redo() {
+    if (historyIndex < historyStack.length - 1) {
+        historyIndex++;
+        return historyStack[historyIndex];
+    }
+    return null;
+}
+
+function initHistory(container) {
+    historyStack = [container.innerHTML];
+    historyIndex = 0;
+}
+
+function getHistoryInfo() {
+    return {
+        canUndo: historyIndex > 0,
+        canRedo: historyIndex < historyStack.length - 1,
+        index: historyIndex,
+        length: historyStack.length
+    };
+}
+
+// ========== 전역 상태 ==========
 let isActive = false;
 let selectedElement = null;
 let previewContainer = null;
