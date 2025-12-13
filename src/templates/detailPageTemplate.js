@@ -519,7 +519,7 @@ export function generateDetailPage(slots) {
     <!-- Footer -->
     <footer class="page-footer">
       <div class="footer-logo">
-        <img src="/image/프리송컴퍼니 브랜드로고.png" alt="몽글샵" />
+        <img src="/brand-logo.png" alt="몽글샵" />
       </div>
     </footer>
 
