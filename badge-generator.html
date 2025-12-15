@@ -27,7 +27,7 @@
             <section class="upload-section">
                 <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📁</div>
-                    <p class="upload-text">색칠본(컬러) 이미지를 업로드하세요</p>
+                    <p class="upload-text">뱃지 이미지를 업로드하세요</p>
                     <p class="upload-hint">드래그 & 드롭 또는 클릭</p>
                     <input type="file" id="imageInput" accept="image/*" hidden>
                 </div>
@@ -37,36 +37,25 @@
             <section class="preview-section" id="previewSection" style="display: none;">
                 <h2>📐 생성된 뱃지 (7.5cm)</h2>
 
-                <div class="preview-grid">
+                <div class="preview-grid preview-grid-2">
                     <!-- 인쇄용 (뱃지 기계) -->
                     <div class="preview-card">
                         <h3>🖨️ 인쇄용 (7.5cm)</h3>
                         <div class="preview-image">
-                            <canvas id="lineArtCanvas" width="886" height="886"></canvas>
-                        </div>
-                        <button class="download-btn" id="downloadLineArt">
-                            📥 다운로드
-                        </button>
-                    </div>
-
-                    <!-- 색칠본 (상세페이지용) -->
-                    <div class="preview-card">
-                        <h3>🎨 색칠본 (상세페이지)</h3>
-                        <div class="preview-image">
-                            <canvas id="coloredCanvas" width="886" height="886"></canvas>
-                        </div>
-                        <button class="download-btn" id="downloadColored">
-                            📥 다운로드
-                        </button>
-                    </div>
-
-                    <!-- 비색칠본 (상세페이지용) -->
-                    <div class="preview-card">
-                        <h3>✏️ 비색칠본 (상세페이지)</h3>
-                        <div class="preview-image">
                             <canvas id="printCanvas" width="886" height="886"></canvas>
                         </div>
                         <button class="download-btn" id="downloadPrint">
+                            📥 다운로드
+                        </button>
+                    </div>
+
+                    <!-- 상세페이지용 (뱃지 효과) -->
+                    <div class="preview-card">
+                        <h3>🎨 상세페이지용 (뱃지 효과)</h3>
+                        <div class="preview-image">
+                            <canvas id="webCanvas" width="886" height="886"></canvas>
+                        </div>
+                        <button class="download-btn" id="downloadWeb">
                             📥 다운로드
                         </button>
                     </div>

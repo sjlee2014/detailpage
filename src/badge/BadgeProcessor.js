@@ -1,28 +1,31 @@
 /**
- * Badge Processor - 뱃지 이미지 처리 모듈
- * 색칠본 이미지로 3가지 출력물 생성:
- * 1. 인쇄용 (뱃지 기계용, 7.5cm)
- * 2. 색칠본 (상세페이지용 컬러)
- * 3. 비색칠본 (상세페이지용 라인아트)
+ * Badge Processor - 뱃지 이미지 처리 모듈 (간소화 버전)
+ * 
+ * 기능:
+ * 1. 스마트 원형 감지 - 이미지에서 원형 콘텐츠 자동 감지
+ * 2. 배경 자동 제거 - 흰색/회색 배경 및 기존 그림자 제거
+ * 3. 일관된 뱃지 효과 - 돔, 그림자, 하이라이트 적용
+ * 
+ * 출력물:
+ * 1. 인쇄용 (뱃지 기계용, 7.5cm) - 재단선 포함
+ * 2. 상세페이지용 (뱃지 효과 적용)
  */
 
 // Constants
 const BADGE_SIZE = 886; // 7.5cm at 300dpi (for print)
-const WEB_SIZE = 600; // Web display size
-const BADGE_DIAMETER_CM = 7.5;
 
 class BadgeProcessor {
     constructor() {
         this.originalImage = null;
+        this.extractedImage = null;
         this.initEventListeners();
     }
 
     initEventListeners() {
         const uploadArea = document.getElementById('uploadArea');
         const imageInput = document.getElementById('imageInput');
-        const downloadLineArt = document.getElementById('downloadLineArt');
-        const downloadColored = document.getElementById('downloadColored');
         const downloadPrint = document.getElementById('downloadPrint');
+        const downloadWeb = document.getElementById('downloadWeb');
         const downloadAll = document.getElementById('downloadAll');
         const resetBtn = document.getElementById('resetBtn');
 
@@ -55,9 +58,8 @@ class BadgeProcessor {
         });
 
         // Download buttons
-        downloadLineArt.addEventListener('click', () => this.downloadCanvas('lineArtCanvas', '뱃지_인쇄용_7.5cm.png'));
-        downloadColored.addEventListener('click', () => this.downloadCanvas('coloredCanvas', '뱃지_색칠본_상세페이지용.png'));
-        downloadPrint.addEventListener('click', () => this.downloadCanvas('printCanvas', '뱃지_비색칠본_상세페이지용.png'));
+        downloadPrint.addEventListener('click', () => this.downloadCanvas('printCanvas', '뱃지_인쇄용_7.5cm.png'));
+        downloadWeb.addEventListener('click', () => this.downloadCanvas('webCanvas', '뱃지_상세페이지용.png'));
         downloadAll.addEventListener('click', () => this.downloadAllAsZip());
 
         // Reset button
@@ -75,74 +77,206 @@ class BadgeProcessor {
             const img = new Image();
             img.onload = () => {
                 this.originalImage = img;
-                this.processImage(img);
+                this.smartExtractAndProcess(img);
             };
             img.src = e.target.result;
         };
         reader.readAsDataURL(file);
     }
 
-    processImage(img) {
+    /**
+     * 스마트 추출 및 처리
+     */
+    smartExtractAndProcess(img) {
+        // 분석용 캔버스 생성
+        const analysisCanvas = document.createElement('canvas');
+        const analysisCtx = analysisCanvas.getContext('2d');
+
+        const analysisSize = 400;
+        analysisCanvas.width = analysisSize;
+        analysisCanvas.height = analysisSize;
+
+        const scale = Math.max(analysisSize / img.width, analysisSize / img.height);
+        const scaledW = img.width * scale;
+        const scaledH = img.height * scale;
+        const offsetX = (analysisSize - scaledW) / 2;
+        const offsetY = (analysisSize - scaledH) / 2;
+
+        analysisCtx.fillStyle = 'white';
+        analysisCtx.fillRect(0, 0, analysisSize, analysisSize);
+        analysisCtx.drawImage(img, offsetX, offsetY, scaledW, scaledH);
+
+        // 원형 영역 감지
+        const circleInfo = this.detectCircle(analysisCtx, analysisSize);
+
+        // 추출된 이미지 생성
+        this.extractedImage = this.extractCircularContent(img, circleInfo);
+
         // Show preview section
         document.getElementById('previewSection').style.display = 'block';
         document.querySelector('.upload-section').style.display = 'none';
 
-        // Process all three versions
-        this.createPrintLineArt(img);     // 인쇄용 (비색칠본, 886px)
-        this.createColoredForWeb(img);    // 색칠본 (상세페이지용)
-        this.createLineArtForWeb(img);    // 비색칠본 (상세페이지용)
+        // Process both versions
+        this.createPrintVersion(this.extractedImage);
+        this.createWebVersion(this.extractedImage);
     }
 
     /**
-     * 인쇄용 템플릿 생성 (7.5cm, 뱃지 기계용)
-     * - 비색칠본 (라인아트)
-     * - 정확한 886px 사이즈
-     * - 재단선 포함
+     * 원형 영역 감지 알고리즘
      */
-    createPrintLineArt(img) {
-        const canvas = document.getElementById('lineArtCanvas');
+    detectCircle(ctx, size) {
+        const imageData = ctx.getImageData(0, 0, size, size);
+        const data = imageData.data;
+
+        // 배경색 감지 (모서리 샘플링)
+        const corners = [
+            { x: 5, y: 5 },
+            { x: size - 5, y: 5 },
+            { x: 5, y: size - 5 },
+            { x: size - 5, y: size - 5 }
+        ];
+
+        let bgR = 0, bgG = 0, bgB = 0;
+        corners.forEach(corner => {
+            const idx = (corner.y * size + corner.x) * 4;
+            bgR += data[idx];
+            bgG += data[idx + 1];
+            bgB += data[idx + 2];
+        });
+        bgR /= 4; bgG /= 4; bgB /= 4;
+
+        // 배경과 다른 픽셀 찾기
+        const contentPixels = [];
+        const bgThreshold = 40;
+
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const idx = (y * size + x) * 4;
+                const r = data[idx];
+                const g = data[idx + 1];
+                const b = data[idx + 2];
+
+                const diff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB);
+
+                if (diff > bgThreshold) {
+                    contentPixels.push({ x, y });
+                }
+            }
+        }
+
+        if (contentPixels.length < 100) {
+            return {
+                centerX: 0.5,
+                centerY: 0.5,
+                radius: 0.5,
+                hasCircle: false
+            };
+        }
+
+        // 바운딩 박스 계산
+        let minX = size, maxX = 0, minY = size, maxY = 0;
+        contentPixels.forEach(p => {
+            if (p.x < minX) minX = p.x;
+            if (p.x > maxX) maxX = p.x;
+            if (p.y < minY) minY = p.y;
+            if (p.y > maxY) maxY = p.y;
+        });
+
+        // 원형 피팅
+        const centerX = (minX + maxX) / 2 / size;
+        const centerY = (minY + maxY) / 2 / size;
+        const width = (maxX - minX) / size;
+        const height = (maxY - minY) / size;
+        const radius = Math.max(width, height) / 2;
+
+        const aspectRatio = width / height;
+        const isCircular = aspectRatio > 0.85 && aspectRatio < 1.15;
+
+        return {
+            centerX,
+            centerY,
+            radius: radius * 1.05,
+            hasCircle: isCircular
+        };
+    }
+
+    /**
+     * 원형 콘텐츠 추출
+     */
+    extractCircularContent(img, circleInfo) {
+        const extractCanvas = document.createElement('canvas');
+        const extractCtx = extractCanvas.getContext('2d');
+
+        const outputSize = BADGE_SIZE;
+        extractCanvas.width = outputSize;
+        extractCanvas.height = outputSize;
+
+        extractCtx.fillStyle = 'white';
+        extractCtx.fillRect(0, 0, outputSize, outputSize);
+
+        if (circleInfo.hasCircle) {
+            const srcCenterX = circleInfo.centerX * img.width;
+            const srcCenterY = circleInfo.centerY * img.height;
+            const srcRadius = circleInfo.radius * Math.max(img.width, img.height);
+
+            const srcX = srcCenterX - srcRadius;
+            const srcY = srcCenterY - srcRadius;
+            const srcSize = srcRadius * 2;
+
+            extractCtx.save();
+            extractCtx.beginPath();
+            extractCtx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
+            extractCtx.clip();
+
+            extractCtx.drawImage(
+                img,
+                srcX, srcY, srcSize, srcSize,
+                0, 0, outputSize, outputSize
+            );
+
+            extractCtx.restore();
+        } else {
+            extractCtx.save();
+            extractCtx.beginPath();
+            extractCtx.arc(outputSize / 2, outputSize / 2, outputSize / 2, 0, Math.PI * 2);
+            extractCtx.clip();
+
+            const scale = Math.max(outputSize / img.width, outputSize / img.height);
+            const scaledW = img.width * scale;
+            const scaledH = img.height * scale;
+            const offsetX = (outputSize - scaledW) / 2;
+            const offsetY = (outputSize - scaledH) / 2;
+
+            extractCtx.drawImage(img, offsetX, offsetY, scaledW, scaledH);
+            extractCtx.restore();
+        }
+
+        return extractCanvas;
+    }
+
+    /**
+     * 인쇄용 (뱃지 기계용) - 플랫, 재단선 포함
+     */
+    createPrintVersion(sourceImg) {
+        const canvas = document.getElementById('printCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Clear canvas
         ctx.clearRect(0, 0, BADGE_SIZE, BADGE_SIZE);
-
-        // White background
         ctx.fillStyle = 'white';
         ctx.fillRect(0, 0, BADGE_SIZE, BADGE_SIZE);
 
-        // Create circular clip for the badge area
+        // Create circular clip
         ctx.save();
         ctx.beginPath();
         ctx.arc(BADGE_SIZE / 2, BADGE_SIZE / 2, BADGE_SIZE / 2, 0, Math.PI * 2);
         ctx.clip();
 
-        // Draw image - fill entire circle
-        const scale = Math.max(BADGE_SIZE / img.width, BADGE_SIZE / img.height);
-        const x = (BADGE_SIZE - img.width * scale) / 2;
-        const y = (BADGE_SIZE - img.height * scale) / 2;
-        ctx.drawImage(img, x, y, img.width * scale, img.height * scale);
+        // Draw image
+        ctx.drawImage(sourceImg, 0, 0, BADGE_SIZE, BADGE_SIZE);
 
         ctx.restore();
 
-        // Convert to line art (grayscale + threshold)
-        const imageData = ctx.getImageData(0, 0, BADGE_SIZE, BADGE_SIZE);
-        const data = imageData.data;
-
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-            const threshold = 180;
-            const value = gray > threshold ? 255 : (gray < 60 ? 0 : gray * 1.3);
-            data[i] = value;
-            data[i + 1] = value;
-            data[i + 2] = value;
-        }
-
-        ctx.putImageData(imageData, 0, 0);
-
-        // Draw cut line (재단선) - dashed circle at the edge
+        // Draw cut line (재단선)
         ctx.strokeStyle = '#666';
         ctx.lineWidth = 2;
         ctx.setLineDash([8, 4]);
@@ -153,12 +287,10 @@ class BadgeProcessor {
     }
 
     /**
-     * 색칠본 (상세페이지용) - 컬러 이미지
-     * 고화질 인쇄 가능 (886px = 7.5cm @ 300dpi)
-     * 실제 핀뱃지처럼 돔(볼록) 효과 적용
+     * 상세페이지용 - 뱃지 효과 (돔, 그림자, 하이라이트)
      */
-    createColoredForWeb(img) {
-        const canvas = document.getElementById('coloredCanvas');
+    createWebVersion(sourceImg) {
+        const canvas = document.getElementById('webCanvas');
         const ctx = canvas.getContext('2d');
         const size = BADGE_SIZE;
         const centerX = size / 2;
@@ -169,7 +301,7 @@ class BadgeProcessor {
         canvas.height = size;
         ctx.clearRect(0, 0, size, size);
 
-        // 1. 부드러운 드롭 쉐도우 (확산형)
+        // 1. 드롭 쉐도우
         ctx.save();
         ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
         ctx.shadowBlur = 30;
@@ -187,24 +319,20 @@ class BadgeProcessor {
         ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
         ctx.clip();
 
-        const scale = Math.max((badgeRadius * 2) / img.width, (badgeRadius * 2) / img.height);
-        const imgW = img.width * scale;
-        const imgH = img.height * scale;
-        const x = (size - imgW) / 2;
-        const y = (size - imgH) / 2;
-        ctx.drawImage(img, x, y, imgW, imgH);
+        const margin = 35;
+        ctx.drawImage(sourceImg, margin, margin, size - margin * 2, size - margin * 2);
         ctx.restore();
 
-        // 3. 돔(볼록) 효과 - 가장자리로 갈수록 어두워짐 (Radial Gradient)
+        // 3. 돔 효과
         const domeGradient = ctx.createRadialGradient(
-            centerX, centerY - badgeRadius * 0.3, 0, // 중심을 살짝 위로
+            centerX, centerY - badgeRadius * 0.3, 0,
             centerX, centerY, badgeRadius
         );
-        domeGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');      // 중심: 투명
-        domeGradient.addColorStop(0.6, 'rgba(255, 255, 255, 0)');    // 중간: 투명
-        domeGradient.addColorStop(0.85, 'rgba(0, 0, 0, 0.03)');      // 시작 어두워짐
-        domeGradient.addColorStop(0.95, 'rgba(0, 0, 0, 0.08)');      // 더 어두움
-        domeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.15)');         // 가장자리: 어둡게
+        domeGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
+        domeGradient.addColorStop(0.6, 'rgba(255, 255, 255, 0)');
+        domeGradient.addColorStop(0.85, 'rgba(0, 0, 0, 0.03)');
+        domeGradient.addColorStop(0.95, 'rgba(0, 0, 0, 0.08)');
+        domeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.15)');
 
         ctx.save();
         ctx.beginPath();
@@ -214,7 +342,7 @@ class BadgeProcessor {
         ctx.fillRect(0, 0, size, size);
         ctx.restore();
 
-        // 4. 상단 하이라이트 (빛 반사)
+        // 4. 상단 하이라이트
         const highlightGradient = ctx.createLinearGradient(
             centerX, centerY - badgeRadius,
             centerX, centerY + badgeRadius * 0.3
@@ -232,7 +360,7 @@ class BadgeProcessor {
         ctx.fillRect(0, 0, size, size);
         ctx.restore();
 
-        // 5. 하단 가장자리 어둡게 (베벨 효과)
+        // 5. 하단 그림자
         const bottomShadow = ctx.createLinearGradient(
             centerX, centerY + badgeRadius * 0.5,
             centerX, centerY + badgeRadius
@@ -249,156 +377,10 @@ class BadgeProcessor {
         ctx.fillRect(0, 0, size, size);
         ctx.restore();
 
-        // 6. 가장자리 얇은 테두리 (자연스럽게)
+        // 6. 테두리
         ctx.beginPath();
         ctx.arc(centerX, centerY, badgeRadius - 0.5, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-    }
-
-    /**
-     * 비색칠본 (상세페이지용) - 라인아트
-     * 고화질 인쇄 가능 (886px = 7.5cm @ 300dpi)
-     * 실제 핀뱃지처럼 돔(볼록) 효과 적용
-     */
-    createLineArtForWeb(img) {
-        const canvas = document.getElementById('printCanvas');
-        const ctx = canvas.getContext('2d');
-        const size = BADGE_SIZE;
-        const centerX = size / 2;
-        const centerY = size / 2;
-        const badgeRadius = size / 2 - 35;
-
-        canvas.width = size;
-        canvas.height = size;
-        ctx.clearRect(0, 0, size, size);
-
-        // 1. 부드러운 드롭 쉐도우
-        ctx.save();
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-        ctx.shadowBlur = 30;
-        ctx.shadowOffsetX = 5;
-        ctx.shadowOffsetY = 8;
-        ctx.fillStyle = 'white';
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-
-        // 2. 임시 캔버스에서 라인아트 변환
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = size;
-        tempCanvas.height = size;
-        const tempCtx = tempCanvas.getContext('2d');
-
-        tempCtx.fillStyle = 'white';
-        tempCtx.beginPath();
-        tempCtx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
-        tempCtx.fill();
-
-        tempCtx.save();
-        tempCtx.beginPath();
-        tempCtx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
-        tempCtx.clip();
-
-        const scale = Math.max((badgeRadius * 2) / img.width, (badgeRadius * 2) / img.height);
-        const imgW = img.width * scale;
-        const imgH = img.height * scale;
-        const x = (size - imgW) / 2;
-        const y = (size - imgH) / 2;
-        tempCtx.drawImage(img, x, y, imgW, imgH);
-        tempCtx.restore();
-
-        // 라인아트 변환
-        const imageData = tempCtx.getImageData(0, 0, size, size);
-        const data = imageData.data;
-
-        for (let i = 0; i < data.length; i += 4) {
-            const r = data[i];
-            const g = data[i + 1];
-            const b = data[i + 2];
-            const a = data[i + 3];
-
-            if (a === 0) continue;
-
-            const gray = 0.299 * r + 0.587 * g + 0.114 * b;
-            const threshold = 180;
-            const value = gray > threshold ? 255 : (gray < 60 ? 0 : gray * 1.3);
-
-            data[i] = value;
-            data[i + 1] = value;
-            data[i + 2] = value;
-        }
-
-        tempCtx.putImageData(imageData, 0, 0);
-
-        // 3. 라인아트를 메인 캔버스에 그리기
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.drawImage(tempCanvas, 0, 0);
-        ctx.restore();
-
-        // 4. 돔(볼록) 효과 - 가장자리로 갈수록 어두워짐
-        const domeGradient = ctx.createRadialGradient(
-            centerX, centerY - badgeRadius * 0.3, 0,
-            centerX, centerY, badgeRadius
-        );
-        domeGradient.addColorStop(0, 'rgba(255, 255, 255, 0)');
-        domeGradient.addColorStop(0.6, 'rgba(255, 255, 255, 0)');
-        domeGradient.addColorStop(0.85, 'rgba(0, 0, 0, 0.02)');
-        domeGradient.addColorStop(0.95, 'rgba(0, 0, 0, 0.06)');
-        domeGradient.addColorStop(1, 'rgba(0, 0, 0, 0.12)');
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillStyle = domeGradient;
-        ctx.fillRect(0, 0, size, size);
-        ctx.restore();
-
-        // 5. 상단 하이라이트
-        const highlightGradient = ctx.createLinearGradient(
-            centerX, centerY - badgeRadius,
-            centerX, centerY + badgeRadius * 0.3
-        );
-        highlightGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-        highlightGradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.12)');
-        highlightGradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.03)');
-        highlightGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillStyle = highlightGradient;
-        ctx.fillRect(0, 0, size, size);
-        ctx.restore();
-
-        // 6. 하단 가장자리 어둡게
-        const bottomShadow = ctx.createLinearGradient(
-            centerX, centerY + badgeRadius * 0.5,
-            centerX, centerY + badgeRadius
-        );
-        bottomShadow.addColorStop(0, 'rgba(0, 0, 0, 0)');
-        bottomShadow.addColorStop(0.5, 'rgba(0, 0, 0, 0.04)');
-        bottomShadow.addColorStop(1, 'rgba(0, 0, 0, 0.1)');
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, badgeRadius, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillStyle = bottomShadow;
-        ctx.fillRect(0, 0, size, size);
-        ctx.restore();
-
-        // 7. 가장자리 얇은 테두리
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, badgeRadius - 0.5, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.08)';
         ctx.lineWidth = 1;
         ctx.stroke();
     }
@@ -420,11 +402,9 @@ class BadgeProcessor {
     async downloadAllAsZip() {
         const zip = new JSZip();
 
-        // Add all canvases to zip
         const canvases = [
-            { id: 'lineArtCanvas', name: '뱃지_인쇄용_7.5cm.png' },
-            { id: 'coloredCanvas', name: '뱃지_색칠본_상세페이지용.png' },
-            { id: 'printCanvas', name: '뱃지_비색칠본_상세페이지용.png' }
+            { id: 'printCanvas', name: '뱃지_인쇄용_7.5cm.png' },
+            { id: 'webCanvas', name: '뱃지_상세페이지용.png' }
         ];
 
         for (const { id, name } of canvases) {
@@ -434,7 +414,6 @@ class BadgeProcessor {
             zip.file(name, base64Data, { base64: true });
         }
 
-        // Generate and download zip
         const content = await zip.generateAsync({ type: 'blob' });
         const link = document.createElement('a');
         link.download = 'badge_set.zip';
@@ -447,6 +426,7 @@ class BadgeProcessor {
      */
     reset() {
         this.originalImage = null;
+        this.extractedImage = null;
         document.getElementById('previewSection').style.display = 'none';
         document.querySelector('.upload-section').style.display = 'block';
         document.getElementById('imageInput').value = '';
