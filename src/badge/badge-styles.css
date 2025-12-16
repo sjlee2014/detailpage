@@ -13,7 +13,7 @@ body {
 }
 
 .badge-app {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
 }
@@ -55,7 +55,7 @@ body {
 .badge-main {
     background: white;
     border-radius: 20px;
-    padding: 40px;
+    padding: 30px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
 }
 
@@ -102,6 +102,336 @@ body {
     color: #888;
 }
 
+/* Editor Section - New Layout */
+.editor-section {
+    margin-bottom: 30px;
+}
+
+.editor-section h2 {
+    text-align: center;
+    margin-bottom: 25px;
+    color: #333;
+}
+
+.editor-layout {
+    display: grid;
+    grid-template-columns: 1fr 450px;
+    gap: 25px;
+}
+
+@media (max-width: 900px) {
+    .editor-layout {
+        grid-template-columns: 1fr;
+    }
+}
+
+.editor-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.control-panel {
+    background: linear-gradient(135deg, #f8f9ff 0%, #eef0ff 100%);
+    border-radius: 15px;
+    padding: 20px;
+    border: 2px solid #e0e4ff;
+}
+
+.control-panel h3 {
+    font-size: 15px;
+    color: #555;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid rgba(102, 126, 234, 0.2);
+}
+
+.panel-header h3 {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.panel-hint {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 15px;
+    padding: 8px 12px;
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 8px;
+}
+
+.add-text-btn {
+    padding: 6px 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+.add-text-btn:hover {
+    transform: scale(1.05);
+}
+
+/* Text Layer Card */
+.text-layers-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.text-layer-card {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+}
+
+.text-layer-card.active {
+    border-color: #667eea;
+}
+
+.text-layer-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.text-layer-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #667eea;
+}
+
+.delete-layer-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: #ffebee;
+    color: #e53935;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+}
+
+.delete-layer-btn:hover {
+    background: #ffcdd2;
+}
+
+.text-layer-content {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.text-layer-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e0e4ff;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+}
+
+.text-layer-input:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+.text-layer-controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+}
+
+.mini-control {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mini-control label {
+    font-size: 11px;
+    color: #888;
+}
+
+.mini-control input,
+.mini-control select {
+    padding: 6px 8px;
+    border: 1px solid #e0e4ff;
+    border-radius: 6px;
+    font-size: 12px;
+    font-family: inherit;
+}
+
+.mini-control input[type="color"] {
+    width: 100%;
+    height: 30px;
+    padding: 2px;
+    cursor: pointer;
+}
+
+.mini-control input[type="number"] {
+    width: 100%;
+}
+
+.text-layer-position {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+/* Live Preview Panel */
+.live-preview-panel {
+    background: linear-gradient(135deg, #f8f9ff 0%, #eef0ff 100%);
+    border-radius: 15px;
+    padding: 20px;
+    border: 2px solid #e0e4ff;
+}
+
+.live-preview-panel h3 {
+    font-size: 15px;
+    color: #555;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+.live-preview-container {
+    background: white;
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.live-preview-container canvas {
+    border-radius: 50%;
+    cursor: move;
+    max-width: 100%;
+}
+
+/* Standard Controls */
+.control-group {
+    margin-bottom: 12px;
+}
+
+.control-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: #555;
+    margin-bottom: 5px;
+}
+
+.input-with-slider {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.number-input {
+    width: 65px;
+    padding: 7px 8px;
+    border: 2px solid #e0e4ff;
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    text-align: center;
+}
+
+.number-input:focus {
+    border-color: #667eea;
+    outline: none;
+}
+
+.input-with-slider input[type="range"] {
+    flex: 1;
+}
+
+.control-group input[type="range"] {
+    width: 100%;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border-radius: 3px;
+    outline: none;
+}
+
+.control-group input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border: 3px solid #667eea;
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.change-image-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 10px;
+    border: 2px dashed #667eea;
+    border-radius: 10px;
+    background: white;
+    color: #667eea;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.change-image-btn:hover {
+    background: #f8f9ff;
+    border-style: solid;
+}
+
+.apply-btn {
+    display: block;
+    width: 100%;
+    padding: 14px 30px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 25px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.apply-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+}
+
 /* Preview Section */
 .preview-section h2 {
     text-align: center;
@@ -111,43 +441,41 @@ body {
 
 .preview-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 30px;
-    margin-bottom: 40px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 25px;
+    margin-bottom: 30px;
 }
 
 .preview-grid-2 {
-    grid-template-columns: repeat(2, 1fr);
-    max-width: 800px;
+    max-width: 700px;
     margin-left: auto;
     margin-right: auto;
 }
 
 @media (max-width: 700px) {
-    .preview-grid,
-    .preview-grid-2 {
+    .preview-grid {
         grid-template-columns: 1fr;
     }
 }
 
 .preview-card {
     background: #f8f9ff;
-    border-radius: 20px;
-    padding: 20px;
+    border-radius: 15px;
+    padding: 15px;
     text-align: center;
 }
 
 .preview-card h3 {
-    font-size: 16px;
+    font-size: 14px;
     color: #555;
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 }
 
 .preview-image {
     background: white;
-    border-radius: 15px;
-    padding: 15px;
-    margin-bottom: 15px;
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
@@ -161,9 +489,9 @@ body {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     border: none;
-    padding: 12px 30px;
-    border-radius: 25px;
-    font-size: 14px;
+    padding: 10px 25px;
+    border-radius: 20px;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -178,7 +506,7 @@ body {
 .download-all-section {
     display: flex;
     justify-content: center;
-    gap: 20px;
+    gap: 15px;
     flex-wrap: wrap;
 }
 
@@ -186,9 +514,9 @@ body {
     background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
     color: white;
     border: none;
-    padding: 15px 40px;
-    border-radius: 30px;
-    font-size: 16px;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: transform 0.2s, box-shadow 0.2s;
@@ -203,9 +531,9 @@ body {
     background: #fff;
     color: #667eea;
     border: 2px solid #667eea;
-    padding: 15px 40px;
-    border-radius: 30px;
-    font-size: 16px;
+    padding: 12px 30px;
+    border-radius: 25px;
+    font-size: 14px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
